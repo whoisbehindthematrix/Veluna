@@ -130,7 +130,7 @@ export default function FoodScreen() {
           </View>
         </View>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>Food Tracking</Text>
+          <Text className='tex' style={styles.title}>Food Tracking</Text>
           <Text style={styles.subtitle}>Monitor your nutrition and calories</Text>
         </View>
       </LinearGradient>
