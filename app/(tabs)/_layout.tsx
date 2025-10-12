@@ -13,13 +13,13 @@ export default function TabLayout() {
           paddingBottom: 8,
           paddingTop: 8,
           height: 100,
-          paddingHorizontal: 10,
+          paddingHorizontal: 2,
         },
         tabBarActiveTintColor: '#ec4899',
         tabBarInactiveTintColor: '#9ca3af',
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '500',
+          fontSize: 13,
+          fontWeight: '700',
         },
       }}
     >

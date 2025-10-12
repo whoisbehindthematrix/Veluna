@@ -20,7 +20,8 @@ export const phaseRecommendations: Record<string, PhaseData> = {
     name: 'Menstrual Phase',
 	image: require('../assets/images/menstal.png'),
     description: 'Days 1-5: Rest and restore your body during menstruation',
-    color: '#fecaca', // light red
+    // color: '#fecaca', // light red
+    color: '#e42a50', // light red
     foods: {
       title: 'Nourishing Foods',
       description: 'Focus on iron-rich foods and warm, comforting meals',
@@ -58,7 +59,8 @@ export const phaseRecommendations: Record<string, PhaseData> = {
     name: 'Follicular Phase',
 	image: require('../assets/images/folli.png'),
     description: 'Days 6-13: Energy building phase with rising estrogen',
-    color: '#bfdbfe', // light blue
+    // color: '#bfdbfe', // light blue
+    color: '#3b82f6', // light blue
     foods: {
       title: 'Fresh & Light Foods',
       description: 'Support your rising energy with fresh, nutrient-dense foods',
@@ -96,7 +98,8 @@ export const phaseRecommendations: Record<string, PhaseData> = {
     name: 'Ovulatory Phase',
 	image: require('../assets/images/oval.png'),
     description: 'Days 14-16: Peak energy and confidence phase',
-    color: '#fde68a', // light yellow
+    // color: '#fde68a', // light yellow
+    color: '#fbbf24', // light yellow
     foods: {
       title: 'Anti-inflammatory Foods',
       description: 'Support your peak phase with vibrant, anti-inflammatory foods',
@@ -134,7 +137,8 @@ export const phaseRecommendations: Record<string, PhaseData> = {
     name: 'Luteal Phase',
 	image: require('../assets/images/luteal.png'),
     description: 'Days 17-28: Winding down phase, prepare for rest',
-    color: '#ddd6fe', // light purple
+    // color: '#ddd6fe', // light purple
+    color: '#8b5cf6', // light purple
     foods: {
       title: 'Comforting Foods',
       description: 'Support your body as it prepares for the next cycle',

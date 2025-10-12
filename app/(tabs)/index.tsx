@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { useCycle } from '@/contexts/CycleContext';
-import { Apple, ChevronRight, Dumbbell, FileText, Zap } from 'lucide-react-native';
+import { Apple, ChevronRight, Dumbbell, FileText, Flame, Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import HeaderStatusBar from '@/components/HeaderStatusBar';
 import HormoneChart from '@/components/HormoneChart';
 import { phaseRecommendations } from '@/data/phaseRecommendation';
 import PhaseCard from '@/components/core-components/PhaseCard';
+import AppButton from '@/components/core-components/Button';
+import AppText from '@/components/core-components/AppText';
 
 export default function HomeScreen() {
   const { state, dispatch } = useCycle();
@@ -47,6 +49,14 @@ export default function HomeScreen() {
       <HeaderStatusBar />
       <StatusBar style="dark" translucent backgroundColor="transparent" />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 34 }}>
+          <Flame size={28} color="black" />
+          <AppText variant="bold" style={{ fontSize: 24, marginLeft: 0, color: 'black' }}>
+            KitFitx
+          </AppText>
+        </View>
+
         {/* Current Phase Card */}
         <View style={styles.topMargin}>
           <PhaseCard
@@ -55,6 +65,7 @@ export default function HomeScreen() {
             cycleDay={state.cycleDay}
             daysUntilNextPeriod={getDaysUntilNextPeriod()}
             image={currentPhaseData.image}
+            phaseColor={currentPhaseData.color}
           />
         </View>
 
@@ -65,10 +76,7 @@ export default function HomeScreen() {
               <Text style={styles.sectionTitle}>Quick Actions</Text>
               <ChevronRight size={25} strokeWidth={3} color="#61606076" />
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingTop: 32 }}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, paddingTop: 14 }}
             >
               <TouchableOpacity
                 style={[styles.actionButton, styles.actionButton3D, { backgroundColor: '#ee4445' }]}
@@ -76,41 +84,54 @@ export default function HomeScreen() {
               >
                 <Text style={styles.actionText}>Food</Text>
                 <Text style={{ color: '#ffffff9d', }}>Tracking</Text>
+                <AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start', alignContent: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
 
-                <Image source={require('../../assets/images/appleeat.png')} style={{ width: 100, height: 120, position: 'absolute', bottom: 4, right: -6 }} resizeMode='contain' />
+                <Image source={require('../../assets/images/food.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 6, right: -2 }} resizeMode='contain' />
 
               </TouchableOpacity>
+
+
               <TouchableOpacity
                 style={[styles.actionButton, styles.actionButton3D, { backgroundColor: '#8b5cf6' }]}
                 onPress={() => router.push('/exercise')}
               >
                 <Text style={styles.actionText}>Exercise</Text>
                 <Text style={{ color: '#ffffff9d', }}>Tracking</Text>
+                <AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start', alignContent: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
 
-                <Image source={require('../../assets/images/ex.png')} style={{ width: 100, height: 120, position: 'absolute', bottom: 4, right: -6 }} resizeMode='contain' />
+                <Image source={require('../../assets/images/dumbbel.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 8, right: -2 }} resizeMode='contain' />
 
               </TouchableOpacity>
+
+            </View>
+            <View
+              style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, paddingTop: 0 }}
+            >
+
               <TouchableOpacity
                 style={[styles.actionButton, styles.actionButton3D, { backgroundColor: '#e42a50' }]}
                 onPress={() => router.push('/exercise')}
               >
                 <Text style={styles.actionText}>Logs</Text>
                 <Text style={{ color: '#ffffff9d', }}>Periods</Text>
+                <AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start', alignContent: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
 
-                <Image source={require('../../assets/images/menstal.png')} style={{ width: 100, height: 140, position: 'absolute', bottom: -6, right: -6 }} resizeMode='contain' />
+                <Image source={require('../../assets/images/menstal.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 6, right: 0 }} resizeMode='contain' />
 
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={[styles.actionButton, styles.actionButton3D, { backgroundColor: '#10b981' }]}
                 onPress={logSymptoms}
               >
                 <Text style={styles.actionText}>Note</Text>
                 <Text style={{ color: '#ffffff9d', }}>take note</Text>
-
-                <Image source={require('../../assets/images/note.png')} style={{ width: 100, height: 140, position: 'absolute', bottom: -6, right: -10 }} resizeMode='contain' />
-
+                <AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start', alignContent: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
+                <Image source={require('../../assets/images/note.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 8, right: 2 }} resizeMode='contain' />
               </TouchableOpacity>
-            </ScrollView>
+
+              
+            </View>
           </View>
         </View>
 
@@ -166,15 +187,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fefefe',
   },
   topMargin: {
-    marginTop: 60,
+    marginTop: 10,
   },
   section: {
     marginHorizontal: 20,
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 18,
+    // fontWeight: '700',
+    fontFamily: 'Bold',
     color: '#1f29375b',
     marginBottom: 0,
   },
@@ -187,12 +209,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButton: {
-    flex: 1,
+    flex: 2,
     backgroundColor: '#fff',
     padding: 16,
     width: 160,
     borderRadius: 16,
-    // alignItems: 'center',
+    alignItems: 'flex-start',
   },
   actionButton3D: {
     // elevation: 8,
@@ -205,7 +227,7 @@ const styles = StyleSheet.create({
   actionText: {
     marginTop: 8,
     fontSize: 20,
-    fontWeight: '900',
+    fontFamily: 'Bold',
     color: 'white',
     textAlign: 'left',
   },

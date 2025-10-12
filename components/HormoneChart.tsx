@@ -105,7 +105,7 @@ const HormoneChart: React.FC<HormoneChartProps> = ({ cycleDay, currentPhase }) =
       <View style={styles.insightsCard}>
         <LinearGradient colors={['#f8fafc', '#f1f5f9']} style={styles.insightsGradient}>
           {/* Description */}
-          <Text style={styles.hormonalDescription}>{getPhaseDescription()}</Text>
+    
 
           {/* Chart */}
           <View style={styles.chartContainer}>
@@ -222,9 +222,10 @@ const HormoneChart: React.FC<HormoneChartProps> = ({ cycleDay, currentPhase }) =
               <Text style={styles.legendText}>FSH</Text>
             </View>
           </View>
+                <Text style={styles.hormonalDescription}>{getPhaseDescription()}</Text>
 
           {/* Current Day & Phase Indicators */}
-          <View style={styles.indicatorsRow}>
+          {/* <View style={styles.indicatorsRow}>
             <View style={styles.indicatorItem}>
               <Text style={styles.indicatorEmoji}>🩸</Text>
               <Text style={styles.indicatorText}>Day 1-5</Text>
@@ -238,7 +239,7 @@ const HormoneChart: React.FC<HormoneChartProps> = ({ cycleDay, currentPhase }) =
               <Text style={styles.indicatorEmoji}>☀️</Text>
               <Text style={styles.indicatorText}>Day 14</Text>
             </View>
-          </View>
+          </View> */}
         </LinearGradient>
       </View>
     </View>
@@ -251,9 +252,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1f2937',
+    fontSize: 18,
+    // fontWeight: '700',
+    fontFamily: 'Bold',
+    color: '#1f293786',
     marginBottom: 16,
   },
   insightsCard: {
