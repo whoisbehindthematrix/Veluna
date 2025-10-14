@@ -130,7 +130,7 @@ export default function HomeScreen() {
                 <Image source={require('../../assets/images/note.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 8, right: 2 }} resizeMode='contain' />
               </TouchableOpacity>
 
-              
+
             </View>
           </View>
         </View>
@@ -138,7 +138,7 @@ export default function HomeScreen() {
         {/* Hormonal Insights Graph */}
         <HormoneChart cycleDay={state.cycleDay} currentPhase={state.currentPhase} />
 
-        {/* Today's Recommendations */} 1
+        {/* Today's Recommendations */} 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Today's Recommendations</Text>
           <View style={styles.recommendationsBlock}>

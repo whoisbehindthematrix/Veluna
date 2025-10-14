@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { phaseRecommendations, PhaseData } from '@/data/recommendations';
+import { phaseRecommendations, PhaseData } from '@/data/phaseRecommendation';
 import { useCycle } from '@/contexts/CycleContext';
 import { Chrome as Home } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 
 export default function TipsScreen() {
   const { state } = useCycle();
