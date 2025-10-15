@@ -12,13 +12,14 @@ export default function TabLayout() {
           borderTopColor: '#f1e6f1',
           paddingBottom: 8,
           paddingTop: 8,
-          height: 80,
+          height: 100,
+          paddingHorizontal: 2,
         },
         tabBarActiveTintColor: '#ec4899',
         tabBarInactiveTintColor: '#9ca3af',
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '500',
+          fontSize: 13,
+          fontWeight: '700',
         },
       }}
     >
@@ -58,7 +59,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="tips"
         options={{
           title: 'Tips',
@@ -66,7 +67,7 @@ export default function TabLayout() {
             <BookOpen size={size} color={color} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="profile"
         options={{
