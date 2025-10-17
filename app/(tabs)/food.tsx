@@ -9,6 +9,8 @@ import { useRouter } from 'expo-router';
 import { AIInsights } from '@/components/AIInsights';
 import { aiService } from '@/services/aiService';
 import { styles } from '@/styles/screens/FoodScreen.style';
+import CircularProgress from 'react-native-circular-progress-indicator';
+
 
 export default function FoodScreen() {
   const { state, dispatch } = useCycle();
@@ -118,7 +120,7 @@ export default function FoodScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <LinearGradient colors={['#fef3c7', '#f8fafc']} style={styles.header}>
+      <LinearGradient colors={['#f6cc23ff', '#f8fafc']} style={styles.header}>
         <View style={styles.homeIconContainer}>
           <View style={styles.backToHomeButton}></View>
         </View>
@@ -128,17 +130,19 @@ export default function FoodScreen() {
             <Text style={styles.subtitle}>Monitor your nutrition and calories</Text>
           </View>
           <View style={styles.imageContainer}>
+            <LinearGradient colors={['#f97316', '#fbbf24' ]} style={{ backgroundColor: '#fef3c7', height:120, width: 120, borderRadius:100,  position: 'absolute', bottom: 12, right: 10, }}></LinearGradient>
             <Image
               source={require('../../assets/images/appleeat.png')}
               style={styles.headerImage}
               resizeMode="contain"
             />
+            
           </View>
         </View>
       </LinearGradient>
 
       {/* Daily Summary */}
-      <View style={styles.summaryCard}>
+      {/* <View style={styles.summaryCard}>
         <View style={styles.summaryHeader}>
           <Target size={24} color="#f97316" />
           <Text style={styles.summaryTitle}>Today's Progress</Text>
@@ -163,6 +167,54 @@ export default function FoodScreen() {
           ]}>
             {remainingCalories >= 0 ? `${remainingCalories} cal remaining` : `${Math.abs(remainingCalories)} cal over`}
           </Text>
+        </View>
+      </View> */}
+
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryHeader}>
+          <Target size={24} color="#f97316" />
+          <Text style={styles.summaryTitle}>Today's Progress</Text>
+        </View>
+
+        <View style={styles.calorieProgress}>
+          {/* Circular Progress Indicator */}
+          <CircularProgress
+            value={todaysCalories}
+            maxValue={calorieGoal}
+            radius={50}
+            duration={1000}
+            progressValueColor={'#f97316'}
+            activeStrokeColor={'#f97316'}
+            activeStrokeSecondaryColor={'#fbbf24'}
+            inActiveStrokeColor={'#f3f4f6'}
+            inActiveStrokeOpacity={1}
+            inActiveStrokeWidth={16}
+            activeStrokeWidth={16}
+            title={'Calories'}
+            titleColor={'#6b7280'}
+            titleStyle={{fontWeight: 'bold', fontSize: 12 }}
+            progressValueStyle={{ fontFamily: 'Bold', fontSize: 28 }}
+            progressValueFontSize={20}
+            circleBackgroundColor={'#fff'}
+          />
+
+          {/* Additional Info Below Circle */}
+          <View style={styles.calorieDetails}>
+            <View style={styles.calorieDetailItem}>
+              <Text style={styles.calorieDetailLabel}>Goal</Text>
+              <Text style={styles.calorieDetailValue}>{calorieGoal}</Text>
+            </View>
+            <View style={styles.calorieDetailDivider} />
+            <View style={styles.calorieDetailItem}>
+              <Text style={styles.calorieDetailLabel}>Remaining</Text>
+              <Text style={[
+                styles.calorieDetailValue,
+                remainingCalories < 0 ? styles.overCalories : styles.underCalories
+              ]}>
+                {remainingCalories >= 0 ? remainingCalories : `+${Math.abs(remainingCalories)}`}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
