@@ -5,8 +5,6 @@ import { Apple, ChevronRight, Dumbbell, FileText, Flame, Zap } from 'lucide-reac
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import HeaderStatusBar from '@/components/HeaderStatusBar';
-import HormoneChart from '@/components/HormoneChart';
-import OnboardingFlow from '../../src/screens/OnboardingFlow';
 import HormoneChartScreen from '../../src/screens/HormoneChartScreen';
 import { phaseRecommendations } from '@/data/phaseRecommendation';
 import PhaseCard from '@/components/core-components/PhaseCard';
@@ -18,7 +16,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const currentPhaseData = phaseRecommendations[state.currentPhase] || phaseRecommendations['menstrual'];
   const today = new Date().toISOString().split('T')[0];
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const logSymptoms = () => {
     const existingEntry = state.entries.find(entry => entry.date === today);
@@ -106,16 +103,6 @@ export default function HomeScreen() {
 
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.actionButton3D, { backgroundColor: '#eab308' }]}
-                onPress={() => setShowOnboarding(true)}
-              >
-                <Text style={styles.actionText}>Onboarding</Text>
-                <Text style={{ color: '#ffffff9d', }}>profile</Text>
-                <AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start', alignContent: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
-                <Image source={require('../../assets/images/oval.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 6, right: -2 }} resizeMode='contain' />
-              </TouchableOpacity>
-
             </View>
             <View
               style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, paddingTop: 0 }}
@@ -148,8 +135,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Hormonal Insights Graph */}
-        <HormoneChart cycleDay={state.cycleDay} currentPhase={state.currentPhase} />
         <View style={{ marginTop: 12 }}>
           <HormoneChartScreen />
         </View>
@@ -193,9 +178,6 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-      <Modal visible={showOnboarding} animationType="slide" onRequestClose={() => setShowOnboarding(false)}>
-        <OnboardingFlow onDone={() => setShowOnboarding(false)} />
-      </Modal>
     </>
   );
 }
