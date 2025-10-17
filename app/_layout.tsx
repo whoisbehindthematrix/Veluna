@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { CycleProvider } from '@/contexts/CycleContext';
 import { WorkoutProvider } from '@/contexts/WorkoutContext';
+import { AppProvider } from '../src/context/AppContext';
 import { useFonts } from 'expo-font';
 import SplashScreenAnimation from '@/components/core-components/SplashScreen';
 
@@ -37,11 +38,13 @@ export default function RootLayout() {
   return (
     <CycleProvider>
       <WorkoutProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
+        <AppProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style="auto" />
+        </AppProvider>
       </WorkoutProvider>
     </CycleProvider>
   );
