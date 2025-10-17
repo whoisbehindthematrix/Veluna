@@ -101,9 +101,9 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1f2937',
   },
-  calorieProgress: {
-    alignItems: 'center',
-  },
+  // calorieProgress: {
+  //   alignItems: 'center',
+  // },
   calorieNumbers: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -136,7 +136,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   underCalories: {
-    color: '#10b981',
+    color: '#f97316',
   },
   overCalories: {
     color: '#ef4444',
@@ -437,4 +437,41 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#f97316',
   },
+  calorieProgress: {
+  alignItems: 'center',
+  paddingVertical: 2,
+  flexDirection: 'row-reverse',
+},
+
+calorieDetails: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginTop: 10,
+  marginRight:60,
+  gap: 20,
+},
+
+calorieDetailItem: {
+  alignItems: 'center',
+},
+
+calorieDetailLabel: {
+  fontSize: 12,
+  color: '#9ca3af',
+  fontWeight: '500',
+  marginBottom: 4,
+},
+
+calorieDetailValue: {
+  fontSize: 18,
+  fontWeight: '700',
+  color: '#1f2937',
+},
+
+calorieDetailDivider: {
+  width: 1,
+  height: 30,
+  backgroundColor: '#e5e7eb',
+},
 });

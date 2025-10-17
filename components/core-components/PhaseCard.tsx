@@ -22,7 +22,9 @@ export default function PhaseCard({
 }: PhaseCardProps) {
   return (
     <View style={[styles.phaseCard3D, { backgroundColor: phaseColor }]}>
-      <Text style={styles.phaseEmoji}>{emoji}</Text>
+      <Text style={styles.phaseEmoji}>
+        {/* {emoji} */}
+      </Text>
       <View style={styles.phaseContent}>
 
         <Text style={{ color: '#ffffff73', fontWeight: 'bold' }}>Current Phase</Text>
