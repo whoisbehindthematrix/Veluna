@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useCycle } from '@/contexts/CycleContext';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { workoutTemplates, WorkoutTemplate, WorkoutSet } from '@/data/strongWorkouts';
 import { RestTimer } from '@/components/RestTimer';
@@ -10,9 +9,10 @@ import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { exerciseLibrary, exerciseById } from '@/data/exerciseLibrary';
 import { styles } from '@/styles/screens/ExerciseScreen.styles';
+import { useCycleStore } from '@/hooks/useCycleStore';
 
 export default function ExerciseScreen() {
-  const { state: cycleState } = useCycle();
+  const { cycle } = useCycleStore();
   const { state: workoutState, dispatch } = useWorkout();
   const router = useRouter();
 

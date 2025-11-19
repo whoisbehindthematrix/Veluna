@@ -12,6 +12,36 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.bolt-expo-nativewind"
     },
+    "splash": {
+      "backgroundColor": "#FFF0F8",
+      "resizeMode": "contain",
+      "image": "./assets/images/icon.png"
+    },
+    "androidStatusBar": {
+      "translucent": false,
+      "backgroundColor": "#FFF0F8",
+      "barStyle": "dark-content"
+    },
+    "android": {
+      "package": "com.kitfitx.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "*.supabase.co",
+              "pathPrefix": "/auth/v1/callback"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
     "web": {
       "bundler": "metro",
       "output": "single",
@@ -20,8 +50,14 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store"
     ],
+    "extra": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://iranxjzqzoknigoskdkn.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlyYW54anpxem9rbmlnb3NrZGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MzUwMjYsImV4cCI6MjA3MzExMTAyNn0.zE7Bzd_6-gZLixFqbeYnXnSN09jPocCfMCNixJlfJ5A",
+      "EXPO_PUBLIC_API_URL": "http://localhost:4000"
+    },
     "experiments": {
       "typedRoutes": true
     }

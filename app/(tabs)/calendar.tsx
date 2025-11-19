@@ -1,82 +1,214 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { useCycle } from '@/contexts/CycleContext';
-import { Droplets, Plus, X, Check, Chrome as Home } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Image } from 'react-native';
+import { Droplets, Plus, X, Check } from 'lucide-react-native';
+import { Calendar, DateData } from 'react-native-calendars';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/src/store';
+import { addEntry, calculatePredictions, CycleEntry, deleteEntry, updateEntry } from '@/src/store/slices/cycleSlice';
+import { phaseRecommendations } from '@/data/phaseRecommendation';
+import AppText from '@/components/core-components/AppText';
 
-interface CalendarDay {
-  date: string;
-  day: number;
-  isPeriod: boolean;
-  hasSymptoms: boolean;
-  isToday: boolean;
-  isCurrentMonth: boolean;
+type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+/**
+ * Calculate the phase for a given date based on cycle data
+ */
+function calculatePhaseForDate(
+  dateISO: string,
+  profile: RootState['cycle']['profile'],
+  entries: CycleEntry[]
+): Phase {
+  const { averageCycleLength, periodDuration, lastPeriodStart } = profile;
+
+  const lastPeriod = lastPeriodStart ||
+    entries
+      .filter(e => e.isPeriod)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
+
+  if (!lastPeriod) {
+    return 'follicular';
+  }
+
+  const lastPeriodDate = new Date(lastPeriod);
+  const targetDate = new Date(dateISO);
+  const daysSince = Math.floor((targetDate.getTime() - lastPeriodDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  let cycleDay = daysSince + 1;
+
+  if (cycleDay <= 0) {
+    cycleDay = ((cycleDay % averageCycleLength) + averageCycleLength) % averageCycleLength + 1;
+  }
+
+  if (cycleDay > averageCycleLength) {
+    cycleDay = ((cycleDay - 1) % averageCycleLength) + 1;
+  }
+
+  const menstrualEnd = periodDuration;
+  const follicularEnd = Math.floor(averageCycleLength / 2) - 1;
+  const ovulatoryEnd = follicularEnd + 3;
+
+  if (cycleDay >= 1 && cycleDay <= menstrualEnd) return 'menstrual';
+  if (cycleDay > menstrualEnd && cycleDay <= follicularEnd) return 'follicular';
+  if (cycleDay > follicularEnd && cycleDay <= ovulatoryEnd) return 'ovulatory';
+  return 'luteal';
 }
 
 export default function CalendarScreen() {
-  const { state, dispatch } = useCycle();
-  const router = useRouter();
+  const dispatch = useDispatch();
+  const cycleState = useSelector((state: RootState) => state.cycle);
+
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
   const [showLogModal, setShowLogModal] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().split('T')[0]);
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
 
-  const generateCalendarDays = (): CalendarDay[] => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
+  // Generate marked dates with phase colors and entry indicators
+  const markedDates = useMemo(() => {
+    const marked: any = {};
     const today = new Date().toISOString().split('T')[0];
 
-    const days: CalendarDay[] = [];
+    // Generate dates for visible calendar range (current month + buffer)
+    const startDate = new Date(currentMonth);
+    startDate.setDate(1);
+    startDate.setDate(startDate.getDate() - startDate.getDay()); // Start of week
 
-    // Add previous month's trailing days
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    const endDate = new Date(currentMonth);
+    endDate.setMonth(endDate.getMonth() + 1);
+    endDate.setDate(0); // Last day of month
+    endDate.setDate(endDate.getDate() + (6 - endDate.getDay())); // End of week
+    const currentMonthIndex = new Date(currentMonth).getMonth();
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateString = d.toISOString().split('T')[0];
+      const isOutsideCurrentMonth = d.getMonth() !== currentMonthIndex;
 
-    // Generate 42 days (6 weeks)
-    for (let i = 0; i < 42; i++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + i);
-      
-      const dateString = currentDate.toISOString().split('T')[0];
-      const entry = state.entries.find(e => e.date === dateString);
-      
-      days.push({
-        date: dateString,
-        day: currentDate.getDate(),
-        isPeriod: entry?.isPeriod || false,
-        hasSymptoms: !!entry?.symptoms,
-        isToday: dateString === today,
-        isCurrentMonth: currentDate.getMonth() === month,
-      });
+      // Gray out days not in the current month (leading/trailing days)
+      if (isOutsideCurrentMonth) {
+        const customStyles: any = {
+          container: {
+            borderRadius: 8,
+            backgroundColor: '#f3f4f6', // light gray bg
+          },
+          text: {
+            color: '#9ca3af', // gray text
+            fontWeight: '500',
+          },
+        };
+        marked[dateString] = {
+          customStyles,
+          selected: false,
+        };
+        continue;
+      }
+      const entry = cycleState.entries.find(e => e.date === dateString);
+      const phase = calculatePhaseForDate(dateString, cycleState.profile, cycleState.entries);
+      const phaseColor = phaseRecommendations[phase]?.color || '#e5e7eb';
+      const isToday = dateString === today;
+      const isPeriod = entry?.isPeriod || false;
+      const hasSymptoms = !!entry?.symptoms && !isPeriod;
+
+      const customStyles: any = {
+        container: {
+          borderRadius: 8,
+        },
+        text: {
+          fontWeight: isToday ? '700' : '500',
+        },
+      };
+
+      // Period days - override with period color
+      if (isPeriod) {
+        customStyles.container.backgroundColor = '#ec4899';
+        customStyles.text.color = '#fff';
+        customStyles.text.fontWeight = '700';
+      } else {
+        // Phase-based background color with opacity
+
+        if (phaseColor === '#8b5cf6') {
+          // console.log('phase', phase)
+          customStyles.container.backgroundColor = "#f1f1f2" + '20';
+        } else {
+          customStyles.container.backgroundColor = phaseColor + '20';
+        }
+
+        customStyles.text.color = '#1f2937';
+
+        // Phase border
+
+        customStyles.container.borderWidth = 2;
+
+        if (phaseColor === '#8b5cf6') {
+          // console.log('phase', phase)
+          customStyles.container.borderColor = "#f1f1f2";
+        } else {
+          customStyles.container.borderColor = phaseColor;
+        }
+        customStyles.container.borderStyle = 'solid';
+      }
+
+      // Today styling
+      if (isToday && !isPeriod) {
+        customStyles.container.borderWidth = 2;
+        customStyles.container.borderColor = '#f59e0b';
+        customStyles.container.backgroundColor = '#fef3c7';
+        customStyles.text.color = '#92400e';
+      }
+
+      // Selected styling
+      if (selectedDates.includes(dateString)) {
+        customStyles.container.backgroundColor = '#a855f7';
+        customStyles.container.borderColor = '#7c3aed';
+        customStyles.container.borderWidth = 2;
+        customStyles.text.color = '#fff';
+        customStyles.text.fontWeight = '700';
+      }
+
+      // Markers for indicators
+      const dots: any[] = [];
+      if (isPeriod) {
+        dots.push({ key: 'period', color: '#fff', selectedDotColor: '#fff' });
+      }
+      if (hasSymptoms) {
+        dots.push({ key: 'symptoms', color: '#8b5cf6', selectedDotColor: '#8b5cf6' });
+      }
+      if (selectedDates.includes(dateString)) {
+        dots.push({ key: 'selected', color: '#fff', selectedDotColor: '#fff' });
+      }
+
+      marked[dateString] = {
+        customStyles,
+        dots: dots.length > 0 ? dots : undefined,
+        selected: selectedDates.includes(dateString),
+      };
     }
 
-    return days;
-  };
+    return marked;
+  }, [currentMonth, cycleState.entries, cycleState.profile, selectedDates]);
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newMonth = new Date(currentMonth);
-    newMonth.setMonth(currentMonth.getMonth() + (direction === 'next' ? 1 : -1));
-    setCurrentMonth(newMonth);
-  };
+  const handleDayPress = useCallback((day: DateData) => {
+    const dateString = day.dateString;
 
-  const toggleDateSelection = (date: string) => {
     if (isMultiSelectMode) {
-      setSelectedDates(prev => 
-        prev.includes(date) 
-          ? prev.filter(d => d !== date)
-          : [...prev, date]
+      setSelectedDates(prev =>
+        prev.includes(dateString)
+          ? prev.filter(d => d !== dateString)
+          : [...prev, dateString]
       );
     } else {
-      setSelectedDates([date]);
+      setSelectedDate(dateString);
+      setSelectedDates([dateString]);
       setShowLogModal(true);
     }
-  };
+  }, [isMultiSelectMode]);
 
-  const logMultipleDates = (isPeriod: boolean) => {
+  const logMultipleDates = useCallback((isPeriod: boolean) => {
     selectedDates.forEach(date => {
-      const newEntry = {
+      dispatch(addEntry({
         date,
         isPeriod,
         symptoms: {
@@ -84,69 +216,120 @@ export default function CalendarScreen() {
           cramps: isPeriod ? 2 : 0,
           energy: isPeriod ? 2 : 3,
         },
-      };
-      dispatch({ type: 'ADD_ENTRY', payload: newEntry });
+      }));
     });
-    
+
+    dispatch(calculatePredictions());
     setSelectedDates([]);
     setIsMultiSelectMode(false);
     setShowLogModal(false);
-  };
+  }, [selectedDates, dispatch]);
 
-  const startMultiSelect = () => {
-    setIsMultiSelectMode(true);
+  // Add this new function to unmark/delete periods
+  // Add this new function to unmark/delete periods
+  const unmarkPeriodDates = useCallback(() => {
+    if (selectedDates.length === 0) return;
+
+    selectedDates.forEach(date => {
+      const entry = cycleState.entries.find(e => e.date === date && e.isPeriod);
+      if (entry) {
+        // Check if entry has symptoms
+        const hasSymptoms = entry.symptoms &&
+          Object.values(entry.symptoms).some(value => value !== undefined && value !== null);
+
+        if (hasSymptoms) {
+          // If entry has symptoms, just unmark period but keep symptoms
+          dispatch(addEntry({
+            date,
+            isPeriod: false,
+            symptoms: entry.symptoms,
+          }));
+        } else {
+          // If entry only has period (no symptoms), delete it entirely
+          dispatch(deleteEntry(date));
+        }
+      }
+    });
+
+    dispatch(calculatePredictions());
     setSelectedDates([]);
-  };
-
-  const cancelMultiSelect = () => {
     setIsMultiSelectMode(false);
-    setSelectedDates([]);
-  };
+    setShowLogModal(false);
+  }, [selectedDates, cycleState.entries, dispatch]);
 
-  const calendarDays = generateCalendarDays();
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // Check if selected date is already a period
+  const isDatePeriod = useMemo(() => {
+    if (selectedDates.length === 0) return false;
+    return selectedDates.some(date =>
+      cycleState.entries.some(e => e.date === date && e.isPeriod)
+    );
+  }, [selectedDates, cycleState.entries]);
+
+  const handleMonthChange = useCallback((month: any) => {
+    setCurrentMonth(month.dateString);
+  }, []);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.homeIconContainer}>
-          <View style={styles.backToHomeButton}>
-            <TouchableOpacity onPress={() => router.push('/')}>
-              <Home size={20} color="#ec4899" />
-            </TouchableOpacity>
-            <Text style={styles.backToHomeText}>Home</Text>
-          </View>
-        </View>
-        <View style={styles.headerContent}>
-          <Text style={styles.title}>Cycle Calendar</Text>
-          <Text style={styles.subtitle}>Track your period and symptoms</Text>
-        </View>
+        <AppText variant='bold' style={{ fontSize: 30, fontWeight: '400', textAlign: 'center', }}>Cycle Calendar</AppText>
+        <Text style={styles.subtitle}>Track your period and symptoms</Text>
       </View>
 
       {/* Calendar Navigation */}
-      <View style={styles.calendarNav}>
-        <TouchableOpacity onPress={() => navigateMonth('prev')} style={styles.navButton}>
-          <Text style={styles.navButtonText}>‹</Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.monthTitle}>
-          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-        </Text>
-        
-        <TouchableOpacity onPress={() => navigateMonth('next')} style={styles.navButton}>
-          <Text style={styles.navButtonText}>›</Text>
-        </TouchableOpacity>
+      <View style={styles.calendarWrapper}>
+        <Calendar
+          current={currentMonth}
+          onMonthChange={handleMonthChange}
+          markingType="custom"
+          markedDates={markedDates}
+          onDayPress={handleDayPress}
+          firstDay={0}
+          enableSwipeMonths={true}
+          theme={{
+            backgroundColor: '#fff',
+            calendarBackground: '#fff',
+            textSectionTitleColor: '#6b7280',
+            textSectionTitleDisabledColor: '#d1d5db',
+            selectedDayBackgroundColor: '#a855f7',
+            selectedDayTextColor: '#fff',
+            todayTextColor: '#92400e',
+            dayTextColor: '#1f2937',
+            textDisabledColor: '#9ca3af',
+            dotColor: '#ec4899',
+            selectedDotColor: '#fff',
+            arrowColor: '#4b5563',
+            monthTextColor: '#1f2937',
+            textDayFontFamily: 'System',
+            textDayFontWeight: '500',
+            textDayFontSize: 16,
+            textMonthFontFamily: 'System',
+            textMonthFontWeight: '700',
+            textMonthFontSize: 20,
+            textDayHeaderFontFamily: 'System',
+            textDayHeaderFontWeight: '600',
+            textDayHeaderFontSize: 12,
+            'stylesheet.calendar.header': {
+              week: {
+                marginTop: 5,
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingHorizontal: 8,
+              },
+            },
+          }}
+          style={styles.calendar}
+        />
       </View>
 
       {/* Multi-Select Controls */}
       <View style={styles.multiSelectControls}>
         {!isMultiSelectMode ? (
-          <TouchableOpacity onPress={startMultiSelect} style={styles.multiSelectButton}>
+          <TouchableOpacity
+            onPress={() => setIsMultiSelectMode(true)}
+            style={styles.multiSelectButton}
+          >
             <Plus size={16} color="#ec4899" />
             <Text style={styles.multiSelectButtonText}>Multi-Select Period Days</Text>
           </TouchableOpacity>
@@ -156,70 +339,42 @@ export default function CalendarScreen() {
               {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''} selected
             </Text>
             <View style={styles.multiSelectActions}>
-              <TouchableOpacity 
-                onPress={() => logMultipleDates(true)} 
+              <TouchableOpacity
+                onPress={() => logMultipleDates(true)}
                 style={[styles.multiSelectActionButton, styles.logPeriodButton]}
                 disabled={selectedDates.length === 0}
               >
                 <Droplets size={16} color="#fff" />
                 <Text style={styles.multiSelectActionText}>Log as Period</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={cancelMultiSelect} style={styles.cancelButton}>
+
+              {/* Add unmark button - show if any selected dates are periods */}
+              {selectedDates.some(date =>
+                cycleState.entries.some(e => e.date === date && e.isPeriod)
+              ) && (
+                  <TouchableOpacity
+                    onPress={() => unmarkPeriodDates()}
+                    style={[styles.multiSelectActionButton, styles.unmarkPeriodButton]}
+                    disabled={selectedDates.length === 0}
+                  >
+                    <X size={16} color="#fff" />
+                    <Text style={styles.multiSelectActionText}>Unmark Period</Text>
+                  </TouchableOpacity>
+                )}
+
+              <TouchableOpacity
+                onPress={() => {
+                  setIsMultiSelectMode(false);
+                  setSelectedDates([]);
+                }}
+                style={styles.cancelButton}
+              >
                 <X size={16} color="#6b7280" />
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
-      </View>
-
-      {/* Week Days Header */}
-      <View style={styles.weekHeader}>
-        {weekDays.map((day, index) => (
-          <View key={index} style={styles.weekDayContainer}>
-            <Text style={styles.weekDay}>{day}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Calendar Grid */}
-      <View style={styles.calendarGrid}>
-        {calendarDays.map((day, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.dayCell,
-              day.isToday && styles.todayCell,
-              day.isPeriod && styles.periodCell,
-              !day.isCurrentMonth && styles.otherMonthCell,
-              selectedDates.includes(day.date) && styles.selectedCell,
-            ]}
-            onPress={() => toggleDateSelection(day.date)}
-          >
-            <Text style={[
-              styles.dayText,
-              day.isToday && styles.todayText,
-              day.isPeriod && styles.periodText,
-              !day.isCurrentMonth && styles.otherMonthText,
-              selectedDates.includes(day.date) && styles.selectedText,
-            ]}>
-              {day.day}
-            </Text>
-            {selectedDates.includes(day.date) && (
-              <View style={styles.selectedIndicator}>
-                <Check size={8} color="#fff" />
-              </View>
-            )}
-            {day.isPeriod && (
-              <View style={styles.periodIndicator}>
-                <Droplets size={8} color="#fff" />
-              </View>
-            )}
-            {day.hasSymptoms && !day.isPeriod && (
-              <View style={styles.symptomIndicator} />
-            )}
-          </TouchableOpacity>
-        ))}
       </View>
 
       {/* Legend */}
@@ -239,42 +394,97 @@ export default function CalendarScreen() {
             <Text style={styles.legendText}>Today</Text>
           </View>
         </View>
+
+        {/* Phase colors legend */}
+        <Text style={[styles.legendTitle, { marginTop: 16 }]}>Phase Colors</Text>
+        <View style={styles.legendItems}>
+          {Object.entries(phaseRecommendations).map(([key, phase]) => (
+            <View key={key} style={styles.legendItem}>
+              <View
+                style={[
+                  styles.legendColor,
+                  {
+                    backgroundColor: phase.color + '20',
+                    borderWidth: 2,
+                    borderColor: phase.color,
+                  },
+                ]}
+              />
+              <Text style={styles.legendText}>{phase.name}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
+      {/* Log Entry Modal */}
       {/* Log Entry Modal */}
       <Modal
         visible={showLogModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowLogModal(false)}
+        onRequestClose={() => {
+          setShowLogModal(false);
+          setSelectedDates([]);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                Log Entry for {selectedDates[0] && new Date(selectedDates[0]).toLocaleDateString()}
+                {selectedDate && new Date(selectedDate).toLocaleDateString()}
               </Text>
-              <TouchableOpacity onPress={() => setShowLogModal(false)}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLogModal(false);
+                  setSelectedDates([]);
+                }}
+              >
                 <X size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.modalOptions}>
-              <TouchableOpacity
-                style={styles.modalOption}
-                onPress={() => logMultipleDates(true)}
-              >
-                <Droplets size={24} color="#ec4899" />
-                <Text style={styles.modalOptionText}>Log Period Day</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.modalOption}
-                onPress={() => logMultipleDates(false)}
-              >
-                <Plus size={24} color="#8b5cf6" />
-                <Text style={styles.modalOptionText}>Log Symptoms Only</Text>
-              </TouchableOpacity>
+              {isDatePeriod ? (
+                // Show unmark option if already a period
+                <>
+                  <TouchableOpacity
+                    style={[styles.modalOption, styles.deleteOption]}
+                    onPress={() => unmarkPeriodDates()}
+                  >
+                    <X size={24} color="#dc2626" />
+                    <Text style={[styles.modalOptionText, styles.deleteOptionText]}>
+                      Unmark Period
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => logMultipleDates(false)}
+                  >
+                    <Plus size={24} color="#8b5cf6" />
+                    <Text style={styles.modalOptionText}>Log Symptoms Only</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                // Show log options if not a period
+                <>
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => logMultipleDates(true)}
+                  >
+                    <Droplets size={24} color="#ec4899" />
+                    <Text style={styles.modalOptionText}>Log Period Day</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => logMultipleDates(false)}
+                  >
+                    <Plus size={24} color="#8b5cf6" />
+                    <Text style={styles.modalOptionText}>Log Symptoms Only</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -286,19 +496,13 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fefefe',
+    backgroundColor: '#FFF0F8',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 30,
     backgroundColor: '#fdf2f8',
-  },
-  homeIconContainer: {
-    marginBottom: 16,
-  },
-  headerContent: {
-    flex: 1,
   },
   title: {
     fontSize: 28,
@@ -307,34 +511,29 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  calendarNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  navButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f9fafb',
-  },
-  navButtonText: {
-    fontSize: 24,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#4b5563',
+    color: '#ec4899',
+    textAlign: 'center',
   },
-  monthTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
+  calendarWrapper: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  calendar: {
+    borderRadius: 12,
   },
   multiSelectControls: {
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   multiSelectButton: {
     flexDirection: 'row',
@@ -400,97 +599,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6b7280',
   },
-  weekHeader: {
-    flexDirection: 'row',
-    paddingHorizontal: 24,
-    marginBottom: 8,
-  },
-  weekDayContainer: {
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  weekDay: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 24,
-  },
-  dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    borderRadius: 8,
-    marginVertical: 2,
-  },
-  todayCell: {
-    backgroundColor: '#fef3c7',
-    borderWidth: 2,
-    borderColor: '#f59e0b',
-  },
-  periodCell: {
-    backgroundColor: '#ec4899',
-  },
-  otherMonthCell: {
-    opacity: 0.3,
-  },
-  selectedCell: {
-    backgroundColor: '#a855f7',
-    borderWidth: 2,
-    borderColor: '#7c3aed',
-  },
-  dayText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1f2937',
-  },
-  todayText: {
-    color: '#92400e',
-    fontWeight: '700',
-  },
-  periodText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  otherMonthText: {
-    color: '#9ca3af',
-  },
-  selectedText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  selectedIndicator: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: '#059669',
-    borderRadius: 6,
-    width: 12,
-    height: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  periodIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-  },
-  symptomIndicator: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#8b5cf6',
-  },
   legend: {
     margin: 24,
     padding: 20,
@@ -504,7 +612,8 @@ const styles = StyleSheet.create({
   },
   legendTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'Bold',
+    // fontWeight: '700',
     color: '#1f2937',
     marginBottom: 12,
   },
@@ -523,6 +632,7 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#4b5563',
   },
   modalOverlay: {
@@ -565,5 +675,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#1f2937',
+  },
+  unmarkPeriodButton: {
+    backgroundColor: '#dc2626',
+  },
+  deleteOption: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  deleteOptionText: {
+    color: '#dc2626',
   },
 });

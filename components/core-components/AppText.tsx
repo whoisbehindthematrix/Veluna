@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Text, TextStyle, TextProps, StyleSheet } from 'react-native';
 
-export type FontVariant = 'normal' | 'bold' | 'semibold' | 'light' | 'feather' ;
+export type FontVariant = 'normal' | 'bold' | 'semibold' | 'light' | 'Modak' ;
 
 interface AppTextProps extends TextProps {
   children: ReactNode;
@@ -16,7 +16,7 @@ const FONT_MAP: Record<FontVariant, string | undefined> = {
   bold: 'Bold',
   semibold: 'Semibold',
   light: 'Light',
-  feather: 'Feather',
+  Modak: 'Modak',
 //   'bold-small': 'Bold',
 };
 
@@ -26,7 +26,7 @@ const FONT_WEIGHT_FALLBACK: Record<FontVariant, TextStyle['fontWeight']> = {
 //   bold: '700',
   semibold: '600',
   light: '300',
-  feather: '200',
+  Modak: '400',
 };
 
 export default function AppText({

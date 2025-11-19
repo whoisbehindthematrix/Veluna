@@ -1,9 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
+import * as SecureStore from 'expo-secure-store';
+import { appConfig } from './config';
 
-const supabaseUrl = 'https://iranxjzqzoknigoskdkn.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlyYW54anpxem9rbmlnb3NrZGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MzUwMjYsImV4cCI6MjA3MzExMTAyNn0.zE7Bzd_6-gZLixFqbeYnXnSN09jPocCfMCNixJlfJ5A';
+const secureStorage = {
+  getItem: (key: string) => SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+};
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  appConfig.supabaseUrl,
+  appConfig.supabaseAnonKey,
+  {
+    auth: {
+      storage: secureStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  }
+);
+
+export async function saveRefreshToken(token: string) {
+  await SecureStore.setItemAsync('supabase_refresh_token', token);
+}
+export async function getRefreshToken() {
+  return SecureStore.getItemAsync('supabase_refresh_token');
+}
+export async function deleteRefreshToken() {
+  return SecureStore.deleteItemAsync('supabase_refresh_token');
+}
 
 // Database types
 export interface CycleEntry {

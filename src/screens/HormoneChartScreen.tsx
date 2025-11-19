@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useApp } from '../context/AppContext';
 import HormoneChart from '../components/HormoneChart';
 import { estimateHormonesForCycle } from '../lib/hormoneEngine';
+import AppButton from '@/components/core-components/Button';
+import AppText from '@/components/core-components/AppText';
 
 export default function HormoneChartScreen() {
   const { mock } = useApp();
@@ -42,9 +44,9 @@ export default function HormoneChartScreen() {
       <View style={{ padding: 16 }}>
         {/* Header */}
         <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 24, fontWeight: '800', color: '#1e293b', textAlign: 'center', marginBottom: 8 }}>
+           <AppText variant="bold" style={{ fontSize: 24, color: '#1e293b', textAlign: 'center', marginBottom: 8 }}>
             Hormone Cycle Dynamics
-          </Text>
+           </AppText>
           <Text style={{ fontSize: 14, color: '#64748b', textAlign: 'center' }}>
             Track your hormonal patterns over time
           </Text>

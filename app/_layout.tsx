@@ -1,51 +1,57 @@
 import { useEffect, useState } from 'react';
-import { SplashScreen, Stack } from 'expo-router';
+import { View, StyleSheet } from 'react-native'; // <-- Import View and StyleSheet
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { CycleProvider } from '@/contexts/CycleContext';
 import { WorkoutProvider } from '@/contexts/WorkoutContext';
 import { AppProvider } from '../src/context/AppContext';
+import { ReduxProvider } from '@/contexts/ReduxProvider';
 import { useFonts } from 'expo-font';
 import SplashScreenAnimation from '@/components/core-components/SplashScreen';
+import InitialLayout from './InitialLayout';
 
+// Prevent the native splash screen from auto-hiding until we are ready
+import * as SplashScreen from 'expo-splash-screen';
 export default function RootLayout() {
-
   useFrameworkReady();
-
-
   const [fontsLoaded] = useFonts({
     Bold: require('../assets/fonts/Sentient-Bold.otf'),
-
+    Modak: require('../assets/fonts/Modak-Regular.ttf'),
   });
 
-  const [splashHidden, setSplashHidden] = useState(false);
-
   useEffect(() => {
-    if (fontsLoaded && !splashHidden) {
-      SplashScreen.hideAsync().then(() => setSplashHidden(true));
-      //  registerForPushNotificationsAsync();
-    }
-  }, [fontsLoaded, splashHidden]);
+    SplashScreen.preventAutoHideAsync().catch(() => { });
+  }, []);
+  useEffect(() => {
+    // console.log('Fonts loaded:', fontsLoaded);
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return <SplashScreenAnimation />; // render-safe early return
+    return (
+      <View style={styles.root}>
+        <SplashScreenAnimation />
+      </View>
+    );
   }
 
-
-
-
-
   return (
-    <CycleProvider>
-      <WorkoutProvider>
-        <AppProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-        </AppProvider>
-      </WorkoutProvider>
-    </CycleProvider>
+    <View style={styles.root}>
+      <ReduxProvider>
+          <WorkoutProvider>
+            <AppProvider>
+              <InitialLayout />
+              <StatusBar style="dark" backgroundColor="#FFF0F8" />
+            </AppProvider>
+          </WorkoutProvider>
+      </ReduxProvider>
+    </View>
   );
 }
+
+// CRITICAL FIX: Define the root view style with the correct background color.
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#FFF0F8',
+  },
+});
