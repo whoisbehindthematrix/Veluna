@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Rect, G } from 'react-native-svg';
 import type { HormoneEstimate } from '../lib/hormoneEngine';
+import { useTheme } from '@/src/context/ThemeContext';
 
 type Props = {
   data: HormoneEstimate[];
@@ -13,6 +14,8 @@ type Props = {
 };
 
 export default function HormoneChart({ data, width = 340, height = 180, selectedDate, hormone = 'all', onDateChange }: Props) {
+  const { theme } = useTheme();
+  
   if (!data || data.length === 0) return <View style={{ height }} />;
 
   const padding = 16;
@@ -56,11 +59,11 @@ export default function HormoneChart({ data, width = 340, height = 180, selected
         onResponderGrant={handleTouch}
         onResponderMove={handleTouch}
       >
-        <Rect x={0} y={0} width={width} height={height} fill="#ffffff" />
+        <Rect x={0} y={0} width={width} height={height} fill={theme.cardBackground} />
         {/* grid */}
         <G opacity={0.1}>
           {[0, 1, 2, 3, 4].map(i => (
-            <Path key={i} d={`M ${padding} ${padding + (h / 4) * i} H ${padding + w}`} stroke="#6b7280" strokeWidth={1} />
+            <Path key={i} d={`M ${padding} ${padding + (h / 4) * i} H ${padding + w}`} stroke={theme.textSecondary} strokeWidth={1} />
           ))}
         </G>
         {/* lines */}
@@ -79,7 +82,7 @@ export default function HormoneChart({ data, width = 340, height = 180, selected
 
         {/* selected date marker */}
         {selectedIndex >= 0 && (
-          <Path d={`M ${x(selectedIndex)} ${padding} L ${x(selectedIndex)} ${padding + h}`} stroke="#111827" strokeDasharray="4,3" strokeWidth={1.5} />
+          <Path d={`M ${x(selectedIndex)} ${padding} L ${x(selectedIndex)} ${padding + h}`} stroke={theme.textPrimary} strokeDasharray="4,3" strokeWidth={1.5} />
         )}
       </Svg>
     </View>

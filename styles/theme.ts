@@ -8,9 +8,9 @@ export const palette = {
 	neutral50: '#f8fafc',
 	neutral100: '#f3f4f6',
 	neutral500: '#6b7280',
-	neutral900: '#111827',
+	neutral900: '#212023',
 	white: '#ffffff',
-	black: '#000000',
+	black: '#161616',
   };
   
   export const lightTheme = {
@@ -31,8 +31,8 @@ export const palette = {
   export const darkTheme: typeof lightTheme = {
 	mode: 'dark',
 	background: palette.black,
-	cardBackground: '#1f2937',
-	headerGradient: ['#1f1b24', '#111827'] as const,
+	cardBackground: '#212023',
+	headerGradient: ['#1f1b24', '#212023'] as const,
 	textPrimary: palette.white,
 	textSecondary: '#d1d5db',
 	primary: '#f472b6',

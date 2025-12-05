@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
@@ -10,10 +10,11 @@ import {
 	calculatePredictions,
 	updateCurrentPhase,
 } from '@/src/store/slices/cycleSlice';
-import { lightTheme as theme } from '@/styles/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 import { ChevronLeft, Calendar, Ruler, Droplet, Clock3, Save } from 'lucide-react-native';
 
 export default function CycleDurationSettingsScreen() {
+	const { theme, accentColor } = useTheme();
 	const router = useRouter();
 	const dispatch = useDispatch<AppDispatch>();
 	const cycleState = useSelector((state: RootState) => state.cycle);
@@ -69,6 +70,8 @@ export default function CycleDurationSettingsScreen() {
 		Alert.alert('Saved', 'Cycle defaults updated successfully.');
 	};
 
+	const styles = createStyles(theme, accentColor);
+
 	return (
 		<KeyboardAvoidingView
 			style={{ flex: 1 }}
@@ -77,14 +80,13 @@ export default function CycleDurationSettingsScreen() {
 			<ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 				<LinearGradient colors={theme.headerGradient} style={styles.header}>
 					<View style={styles.headerTopRow}>
-						<AppText
-							style={styles.backButton}
+						<TouchableOpacity
+							style={[styles.backButton, { borderColor: theme.border }]}
 							onPress={() => router.back()}
 						>
-							<ChevronLeft size={18} color={theme.primary} />
-							
-							<AppText style={styles.fieldIcon}>Back</AppText>
-						</AppText>
+							<ChevronLeft size={18} color={accentColor} />
+							<AppText style={[styles.backButtonText, { color: accentColor }]}>Back</AppText>
+						</TouchableOpacity>
 						<View style={{ width: 60 }} />
 					</View>
 					<AppText style={styles.headerTitle}>Cycle Length & Defaults</AppText>
@@ -97,7 +99,7 @@ export default function CycleDurationSettingsScreen() {
 					<AppText style={styles.sectionTitle}>Cycle Timing</AppText>
 
 					<SettingsField
-						icon={<Calendar size={18} color={theme.primary} />}
+						icon={<Calendar size={18} color={accentColor} />}
 						label="Date of Birth (DD-MM-YYYY)"
 						helper={
 							editedProfile.dateOfBirth
@@ -112,7 +114,7 @@ export default function CycleDurationSettingsScreen() {
 					/>
 
 					<SettingsField
-						icon={<Ruler size={18} color={theme.primary} />}
+						icon={<Ruler size={18} color={accentColor} />}
 						label="Average Cycle Length (days)"
 						helper={`Calculated: ${cycleState.predictions.analytics?.averageCycle || cycleState.profile.averageCycleLength} days`}
 						value={editedProfile.averageCycleLength.toString()}
@@ -127,7 +129,7 @@ export default function CycleDurationSettingsScreen() {
 					/>
 
 					<SettingsField
-						icon={<Droplet size={18} color={theme.primary} />}
+						icon={<Droplet size={18} color={accentColor} />}
 						label="Period Duration (days)"
 						helper={`Average from logs: ${cycleState.predictions.analytics?.averagePeriod || cycleState.profile.periodDuration} days`}
 						value={editedProfile.periodDuration.toString()}
@@ -142,7 +144,7 @@ export default function CycleDurationSettingsScreen() {
 					/>
 
 					<SettingsField
-						icon={<Clock3 size={18} color={theme.primary} />}
+						icon={<Clock3 size={18} color={accentColor} />}
 						label="Luteal Phase Length (days)"
 						helper="Typical range: 9-16 days (most common: 14)"
 						value={editedProfile.lutealPhaseDays.toString()}
@@ -157,7 +159,7 @@ export default function CycleDurationSettingsScreen() {
 					/>
 
 					<SettingsField
-						icon={<Calendar size={18} color={theme.primary} />}
+						icon={<Calendar size={18} color={accentColor} />}
 						label="Last Period Start Date"
 						helper="Helps us place you in the right phase immediately."
 						value={editedProfile.lastPeriodStart || ''}
@@ -171,20 +173,23 @@ export default function CycleDurationSettingsScreen() {
 				</View>
 
 				<View style={styles.actionsRow}>
-					<AppText
-						style={[styles.actionButton, styles.outlineButton]}
+					<TouchableOpacity
+						style={[styles.actionButton, styles.outlineButton, { borderColor: accentColor }]}
 						onPress={() => setIsEditing(prev => !prev)}
 					>
-						{isEditing ? 'Cancel' : 'Edit'}
-					</AppText>
+						<AppText style={[styles.actionButtonText, { color: accentColor }]}>
+							{isEditing ? 'Cancel' : 'Edit'}
+						</AppText>
+					</TouchableOpacity>
 
-					<AppText
-						style={[styles.actionButton, styles.primaryButton, !isEditing && { opacity: 0.4 }]}
-						
+					<TouchableOpacity
+						style={[styles.actionButton, styles.primaryButton, { backgroundColor: accentColor }, !isEditing && styles.actionButtonDisabled]}
 						onPress={isEditing ? saveProfile : undefined}
+						disabled={!isEditing}
 					>
-						<Save size={18} color="#fff" /> Save Changes
-					</AppText>
+						<Save size={18} color="#fff" />
+						<AppText style={styles.actionButtonText}>Save Changes</AppText>
+					</TouchableOpacity>
 				</View>
 
 				<AppText style={styles.footerText}>
@@ -196,6 +201,7 @@ export default function CycleDurationSettingsScreen() {
 		</KeyboardAvoidingView>
 	);
 }
+
 function SettingsField({
 	icon,
 	label,
@@ -215,12 +221,15 @@ function SettingsField({
 	placeholder?: string;
 	keyboardType?: 'default' | 'numeric' | 'numbers-and-punctuation';
 }) {
+	const { theme } = useTheme();
 	const [localValue, setLocalValue] = useState(value);
 
 	// When parent (Redux or screen) updates — sync it once.
 	useEffect(() => {
 		setLocalValue(value);
 	}, [value]);
+
+	const styles = createFieldStyles(theme);
 
 	return (
 		<View style={styles.field}>
@@ -230,7 +239,11 @@ function SettingsField({
 			</View>
 
 			<TextInput
-				style={[styles.input, !editable && styles.inputDisabled]}
+				style={[styles.input, !editable && styles.inputDisabled, { 
+					backgroundColor: theme.cardBackground,
+					color: theme.textPrimary,
+					borderColor: theme.border,
+				}]}
 				value={localValue}
 				onChangeText={setLocalValue}
 				onBlur={() => onChangeText(localValue)} // ✅ sync back only when user finishes typing
@@ -245,8 +258,7 @@ function SettingsField({
 	);
 }
 
-
-const styles = StyleSheet.create({
+const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: theme.background,
@@ -265,15 +277,18 @@ const styles = StyleSheet.create({
 		marginBottom: 16,
 	},
 	backButton: {
-		color: theme.primary,
-		fontWeight: '600',
-		fontSize: 14,
-        backgroundColor: theme.primarySoft,
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 6,
+		backgroundColor: 'transparent',
 		borderRadius: 12,
 		paddingHorizontal: 12,
 		paddingVertical: 6,
 		borderWidth: 1,
-		borderColor: theme.border,
+	},
+	backButtonText: {
+		fontWeight: '600',
+		fontSize: 14,
 	},
 	headerTitle: {
 		fontSize: 24,
@@ -308,6 +323,48 @@ const styles = StyleSheet.create({
 		color: theme.textPrimary,
 		marginBottom: 6,
 	},
+	actionsRow: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		marginHorizontal: 20,
+		marginTop: 24,
+		gap: 12,
+	},
+	actionButton: {
+		flex: 1,
+		paddingVertical: 14,
+		borderRadius: 16,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 8,
+	},
+	actionButtonText: {
+		fontWeight: '700',
+		fontSize: 15,
+		color: '#ffffff',
+	},
+	actionButtonDisabled: {
+		opacity: 0.4,
+	},
+	outlineButton: {
+		backgroundColor: 'transparent',
+		borderWidth: 2,
+	},
+	primaryButton: {
+		backgroundColor: accentColor,
+	},
+	footerText: {
+		marginHorizontal: 24,
+		marginTop: 24,
+		color: theme.textSecondary,
+		fontSize: 13,
+		lineHeight: 20,
+		textAlign: 'center',
+	},
+});
+
+const createFieldStyles = (theme: any) => StyleSheet.create({
 	field: {
 		gap: 10,
 	},
@@ -320,7 +377,6 @@ const styles = StyleSheet.create({
 		width: 36,
 		height: 36,
 		borderRadius: 12,
-		// backgroundColor: theme.primarySoft,
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
@@ -330,15 +386,12 @@ const styles = StyleSheet.create({
 		color: theme.textPrimary,
 	},
 	input: {
-		backgroundColor: '#ffffff',
 		borderRadius: 14,
 		borderWidth: 1.5,
-		borderColor: theme.border,
 		paddingHorizontal: 16,
 		paddingVertical: 12,
 		fontSize: 16,
 		fontWeight: '500',
-		color: theme.textPrimary,
 		shadowColor: '#000',
 		shadowOffset: { width: 0, height: 2 },
 		shadowOpacity: 0.05,
@@ -346,47 +399,10 @@ const styles = StyleSheet.create({
 		elevation: 2,
 	},
 	inputDisabled: {
-		backgroundColor: theme.primarySoft,
-		color: theme.textSecondary,
+		opacity: 0.6,
 	},
 	helperText: {
 		fontSize: 12,
 		color: theme.textSecondary,
-	},
-	actionsRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		marginHorizontal: 20,
-		marginTop: 24,
-		gap: 12,
-	},
-	actionButton: {
-		flex: 1,
-		paddingVertical: 14,
-		borderRadius: 16,
-		textAlign: 'center',
-		fontWeight: '700',
-		fontSize: 15,
-	},
-	outlineButton: {
-		backgroundColor: 'transparent',
-		borderWidth: 2,
-		borderColor: theme.primary,
-		color: theme.primary,
-	},
-	primaryButton: {
-		backgroundColor: theme.primary,
-		color: '#ffffff',
-		flexDirection: 'row',
-		textAlign: 'center',
-		overflow: 'hidden',
-	},
-	footerText: {
-		marginHorizontal: 24,
-		marginTop: 24,
-		color: theme.textSecondary,
-		fontSize: 13,
-		lineHeight: 20,
-		textAlign: 'center',
 	},
 });

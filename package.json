@@ -67,6 +67,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.1.10",
+    "reactotron-react-native": "^5.1.18",
     "typescript": "~5.9.2"
   }
 }

@@ -8,6 +8,8 @@ import {
   Modal,
   Alert,
   Image,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { commonFoods, weeklyMealPlans, FoodItem } from '@/data/foodData';
@@ -17,12 +19,16 @@ import { useRouter } from 'expo-router';
 import { AIInsights } from '@/components/AIInsights';
 import { supabase } from '@/lib/supabase';
 import CircularProgress from 'react-native-circular-progress-indicator';
-import { styles } from '@/styles/screens/FoodScreen.style';
+import { useTheme } from '@/src/context/ThemeContext';
 import { useCycleStore } from '@/hooks/useCycleStore';
 
 export default function FoodScreen() {
   const { cycle, addFoodEntry } = useCycleStore();
+  const { theme, accentColor } = useTheme();
   const router = useRouter();
+  
+  const { width, height } = Dimensions.get('window');
+  const dynamicStyles = useMemo(() => createStyles(theme, accentColor, width, height), [theme, accentColor, width, height]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
@@ -169,17 +175,17 @@ export default function FoodScreen() {
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[dynamicStyles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <LinearGradient colors={['#f6cc23ff', '#f8fafc']} style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>Food Tracking</Text>
-            <Text style={styles.subtitle}>Monitor your nutrition and calories</Text>
+      <LinearGradient colors={theme.headerGradient as [string, string]} style={dynamicStyles.header}>
+        <View style={dynamicStyles.headerContent}>
+          <View style={dynamicStyles.textContainer}>
+            <Text style={[dynamicStyles.title, { color: theme.textPrimary }]}>Food Tracking</Text>
+            <Text style={[dynamicStyles.subtitle, { color: theme.textSecondary }]}>Monitor your nutrition and calories</Text>
           </View>
-          <View style={styles.imageContainer}>
+          <View style={dynamicStyles.imageContainer}>
             <LinearGradient
-              colors={['#f97316', '#fbbf24']}
+              colors={[`${accentColor}80`, accentColor]}
               style={{
                 height: 120,
                 width: 120,
@@ -191,7 +197,7 @@ export default function FoodScreen() {
             />
             <Image
               source={require('../../assets/images/appleeat.png')}
-              style={styles.headerImage}
+              style={dynamicStyles.headerImage}
               resizeMode="contain"
             />
           </View>
@@ -199,44 +205,49 @@ export default function FoodScreen() {
       </LinearGradient>
 
       {/* Calorie Progress */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryHeader}>
-          <Target size={24} color="#f97316" />
-          <Text style={styles.summaryTitle}>Today's Progress</Text>
+      <View style={[dynamicStyles.summaryCard, { 
+        backgroundColor: theme.cardBackground,
+        shadowColor: accentColor,
+      }]}>
+        <View style={dynamicStyles.summaryHeader}>
+          <Target size={24} color={accentColor} />
+          <Text style={[dynamicStyles.summaryTitle, { color: theme.textPrimary }]}>Today's Progress</Text>
         </View>
 
-        <View style={styles.calorieProgress}>
+        <View style={dynamicStyles.calorieProgress}>
           <CircularProgress
             value={todaysCalories}
             maxValue={calorieGoal}
             radius={50}
             duration={1000}
-            progressValueColor={'#f97316'}
-            activeStrokeColor={'#f97316'}
-            activeStrokeSecondaryColor={'#fbbf24'}
-            inActiveStrokeColor={'#f3f4f6'}
+            progressValueColor={accentColor}
+            activeStrokeColor={accentColor}
+            activeStrokeSecondaryColor={accentColor}
+            inActiveStrokeColor={`${accentColor}30`}
             inActiveStrokeOpacity={1}
             inActiveStrokeWidth={16}
             activeStrokeWidth={16}
             title={'Calories'}
-            titleColor={'#6b7280'}
+            titleColor={theme.textSecondary}
             titleStyle={{ fontWeight: 'bold', fontSize: 12 }}
             progressValueStyle={{ fontFamily: 'Bold', fontSize: 28 }}
-            circleBackgroundColor={'#fff'}
+            circleBackgroundColor={theme.cardBackground}
           />
 
-          <View style={styles.calorieDetails}>
-            <View style={styles.calorieDetailItem}>
-              <Text style={styles.calorieDetailLabel}>Goal</Text>
-              <Text style={styles.calorieDetailValue}>{calorieGoal}</Text>
+          <View style={dynamicStyles.calorieDetails}>
+            <View style={dynamicStyles.calorieDetailItem}>
+              <Text style={[dynamicStyles.calorieDetailLabel, { color: theme.textSecondary }]}>Goal</Text>
+              <Text style={[dynamicStyles.calorieDetailValue, { color: theme.textPrimary }]}>{calorieGoal}</Text>
             </View>
-            <View style={styles.calorieDetailDivider} />
-            <View style={styles.calorieDetailItem}>
-              <Text style={styles.calorieDetailLabel}>Remaining</Text>
+            <View style={[dynamicStyles.calorieDetailDivider, { backgroundColor: theme.border }]} />
+            <View style={dynamicStyles.calorieDetailItem}>
+              <Text style={[dynamicStyles.calorieDetailLabel, { color: theme.textSecondary }]}>Remaining</Text>
               <Text
                 style={[
-                  styles.calorieDetailValue,
-                  remainingCalories < 0 ? styles.overCalories : styles.underCalories,
+                  dynamicStyles.calorieDetailValue,
+                  { 
+                    color: remainingCalories < 0 ? '#ef4444' : accentColor 
+                  },
                 ]}
               >
                 {remainingCalories >= 0 ? remainingCalories : `+${Math.abs(remainingCalories)}`}
@@ -247,67 +258,94 @@ export default function FoodScreen() {
       </View>
 
       {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Add</Text>
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionButton} onPress={takeFoodPhoto}>
-            <Camera size={24} color="#ec4899" />
-            <Text style={styles.quickActionText}>Take Photo</Text>
+      <View style={dynamicStyles.section}>
+        <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Quick Add</Text>
+        <View style={dynamicStyles.quickActions}>
+          <TouchableOpacity 
+            style={[dynamicStyles.quickActionButton, { 
+              backgroundColor: theme.cardBackground,
+              shadowColor: accentColor,
+            }]} 
+            onPress={takeFoodPhoto}
+          >
+            <Camera size={24} color={accentColor} />
+            <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Take Photo</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionButton} onPress={() => setShowAddModal(true)}>
-            <Plus size={24} color="#10b981" />
-            <Text style={styles.quickActionText}>Add Food</Text>
+          <TouchableOpacity 
+            style={[dynamicStyles.quickActionButton, { 
+              backgroundColor: theme.cardBackground,
+              shadowColor: accentColor,
+            }]} 
+            onPress={() => setShowAddModal(true)}
+          >
+            <Plus size={24} color={accentColor} />
+            <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Add Food</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionButton} onPress={() => setShowMealPlanModal(true)}>
-            <Calendar size={24} color="#8b5cf6" />
-            <Text style={styles.quickActionText}>Meal Plan</Text>
+          <TouchableOpacity 
+            style={[dynamicStyles.quickActionButton, { 
+              backgroundColor: theme.cardBackground,
+              shadowColor: accentColor,
+            }]} 
+            onPress={() => setShowMealPlanModal(true)}
+          >
+            <Calendar size={24} color={accentColor} />
+            <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Meal Plan</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionButton} onPress={() => setShowAiInsights(true)}>
-            <TrendingUp size={24} color="#3b82f6" />
-            <Text style={styles.quickActionText}>AI Insights</Text>
+          <TouchableOpacity 
+            style={[dynamicStyles.quickActionButton, { 
+              backgroundColor: theme.cardBackground,
+              shadowColor: accentColor,
+            }]} 
+            onPress={() => setShowAiInsights(true)}
+          >
+            <TrendingUp size={24} color={accentColor} />
+            <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>AI Insights</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Add Food Modal */}
       <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Food</Text>
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={[dynamicStyles.modalContent, { backgroundColor: theme.cardBackground }]}>
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={[dynamicStyles.modalTitle, { color: theme.textPrimary }]}>Add Food</Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.searchContainer}>
-              <Search size={20} color="#6b7280" />
+            <View style={[dynamicStyles.searchContainer, { backgroundColor: `${accentColor}10` }]}>
+              <Search size={20} color={theme.textSecondary} />
               <TextInput
-                style={styles.searchInput}
+                style={[dynamicStyles.searchInput, { color: theme.textPrimary }]}
                 placeholder="Search foods..."
+                placeholderTextColor={theme.textSecondary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
             </View>
 
-            <View style={styles.mealTypeSelection}>
+            <View style={dynamicStyles.mealTypeSelection}>
               {mealTypes.map((meal) => (
                 <TouchableOpacity
                   key={meal.key}
                   style={[
-                    styles.mealTypeButton,
-                    mealType === meal.key && styles.mealTypeButtonActive,
+                    dynamicStyles.mealTypeButton,
+                    { backgroundColor: `${accentColor}10` },
+                    mealType === meal.key && { backgroundColor: meal.color + '30' },
                   ]}
                   onPress={() => setMealType(meal.key as any)}
                 >
-                  <Text style={styles.mealTypeEmoji}>{meal.icon}</Text>
+                  <Text style={dynamicStyles.mealTypeEmoji}>{meal.icon}</Text>
                   <Text
                     style={[
-                      styles.mealTypeText,
-                      mealType === meal.key && styles.mealTypeTextActive,
+                      dynamicStyles.mealTypeText,
+                      { color: theme.textSecondary },
+                      mealType === meal.key && { color: meal.color, fontWeight: '600' },
                     ]}
                   >
                     {meal.name}
@@ -316,19 +354,24 @@ export default function FoodScreen() {
               ))}
             </View>
 
-            <ScrollView style={styles.foodList}>
+            <ScrollView style={dynamicStyles.foodList}>
               {filteredFoods.map((food, index) => (
                 <TouchableOpacity
                   key={index}
                   style={[
-                    styles.foodItem,
-                    selectedFood?.name === food.name && styles.foodItemSelected,
+                    dynamicStyles.foodItem,
+                    { backgroundColor: `${accentColor}10` },
+                    selectedFood?.name === food.name && { 
+                      backgroundColor: `${accentColor}20`,
+                      borderWidth: 2,
+                      borderColor: accentColor,
+                    },
                   ]}
                   onPress={() => setSelectedFood(food)}
                 >
-                  <View style={styles.foodInfo}>
-                    <Text style={styles.foodItemName}>{food.name}</Text>
-                    <Text style={styles.foodItemDetails}>
+                  <View style={dynamicStyles.foodInfo}>
+                    <Text style={[dynamicStyles.foodItemName, { color: theme.textPrimary }]}>{food.name}</Text>
+                    <Text style={[dynamicStyles.foodItemDetails, { color: theme.textSecondary }]}>
                       {food.calories} cal • P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g
                     </Text>
                   </View>
@@ -337,17 +380,25 @@ export default function FoodScreen() {
             </ScrollView>
 
             {selectedFood && (
-              <View style={styles.quantitySection}>
-                <Text style={styles.quantityLabel}>Quantity:</Text>
+              <View style={dynamicStyles.quantitySection}>
+                <Text style={[dynamicStyles.quantityLabel, { color: theme.textPrimary }]}>Quantity:</Text>
                 <TextInput
-                  style={styles.quantityInput}
+                  style={[dynamicStyles.quantityInput, { 
+                    borderColor: theme.border, 
+                    color: theme.textPrimary,
+                    backgroundColor: theme.cardBackground,
+                  }]}
                   value={quantity}
                   onChangeText={setQuantity}
                   keyboardType="numeric"
                   placeholder="1"
+                  placeholderTextColor={theme.textSecondary}
                 />
-                <TouchableOpacity style={styles.addButton} onPress={handleAddFood}>
-                  <Text style={styles.addButtonText}>Add Food</Text>
+                <TouchableOpacity 
+                  style={[dynamicStyles.addButton, { backgroundColor: accentColor }]} 
+                  onPress={handleAddFood}
+                >
+                  <Text style={dynamicStyles.addButtonText}>Add Food</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -364,3 +415,231 @@ export default function FoodScreen() {
     </ScrollView>
   );
 }
+
+// ============================================================================
+// DYNAMIC STYLES (Theme-aware)
+// ============================================================================
+
+const createStyles = (theme: any, accentColor: string, width: number, height: number) => StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 30,
+  },
+  headerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 10,
+  },
+  title: {
+    fontSize: width * 0.07,
+    marginBottom: 4,
+    fontFamily: 'Bold',
+  },
+  subtitle: {
+    fontSize: width * 0.035,
+    fontWeight: '500',
+    lineHeight: width * 0.05,
+  },
+  imageContainer: {
+    width: width * 0.35,
+    height: height * 0.13,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  summaryCard: {
+    margin: 20,
+    padding: 20,
+    borderRadius: 20,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  calorieProgress: {
+    alignItems: 'center',
+    paddingVertical: 2,
+    flexDirection: 'row-reverse',
+  },
+  calorieDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginRight: 60,
+    gap: 20,
+  },
+  calorieDetailItem: {
+    alignItems: 'center',
+  },
+  calorieDetailLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  calorieDetailValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  calorieDetailDivider: {
+    width: 1,
+    height: 30,
+  },
+  section: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontFamily: 'Bold',
+    marginBottom: 16,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  quickActionButton: {
+    minWidth: '22%',
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  quickActionText: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    margin: 20,
+    borderRadius: 20,
+    padding: 24,
+    maxHeight: '80%',
+    width: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingLeft: 8,
+    fontSize: 16,
+  },
+  mealTypeSelection: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  mealTypeButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  mealTypeEmoji: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  mealTypeText: {
+    fontSize: 12,
+  },
+  foodList: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
+  foodItem: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  foodInfo: {
+    flex: 1,
+  },
+  foodItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  foodItemDetails: {
+    fontSize: 12,
+  },
+  quantitySection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  quantityLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  quantityInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    width: 60,
+    textAlign: 'center',
+  },
+  addButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});

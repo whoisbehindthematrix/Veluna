@@ -11,21 +11,22 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
-import { signInWithEmail, clearAuthError, syncUser } from '@/src/store/slices/authSlice';
+import { signUpWithEmail, clearAuthError, syncUser } from '@/src/store/slices/authSlice';
 import AppText from '@/components/core-components/AppText';
 import { AppDispatch, RootState } from '@/src/store';
 import { Ionicons } from '@expo/vector-icons';
 import Logo from '@/assets/images/logo';
 import { useTheme } from '@/src/context/ThemeContext';
 
-const LoginScreen = () => {
+const SignupScreen = () => {
   const { theme, accentColor } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nameError, setNameError] = useState('');
 
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -33,53 +34,79 @@ const LoginScreen = () => {
 
   const dynamicStyles = useMemo(() => createStyles(theme, accentColor), [theme, accentColor]);
 
-  useEffect(() => {
-    return () => {
-      dispatch(clearAuthError());
-    };
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (status === 'succeeded' && user) {
-      dispatch(clearAuthError());
-      router.replace('/(tabs)/home'); // your redirect
-    }
-  }, [status, user]);
-
   const validateEmail = (email: string) => {
-    if (!email) return 'Email is required';
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return 'Please enter a valid email';
+    if (!email) {
+      return 'Email is required';
+    }
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email';
+    }
     return '';
   };
 
   const validatePassword = (password: string) => {
-    if (!password) return 'Password is required';
-    if (password.length < 6) return 'Password must be at least 6 characters';
+    if (!password) {
+      return 'Password is required';
+    }
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return '';
+  };
+
+  const validateName = (name: string) => {
+    if (!name.trim()) {
+      return 'Name is required';
+    }
+    if (name.trim().length < 2) {
+      return 'Name must be at least 2 characters';
+    }
     return '';
   };
 
   const handleSubmit = async () => {
     const emailErr = validateEmail(email);
     const passwordErr = validatePassword(password);
+    const nameErr = validateName(displayName);
 
     setEmailError(emailErr);
     setPasswordError(passwordErr);
+    setNameError(nameErr);
 
-    if (emailErr || passwordErr) return;
+    if (emailErr || passwordErr || nameErr) {
+      return;
+    }
 
     try {
-      setIsSubmitting(true);
+      await dispatch(signUpWithEmail({
+        email,
+        password,
+        displayName: displayName.trim()
+      })).unwrap();
 
-      await dispatch(signInWithEmail({ email, password })).unwrap();
+      // ✅ Sync user data after successful signup to get onboarding status
       await dispatch(syncUser()).unwrap();
+    } catch (error) {
 
-    } catch (err) {
-      console.log(err);
-    } finally {
-      setIsSubmitting(false);
+      // Error is already handled by the thunk
+      console.error('Signup error:', error);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      dispatch(clearAuthError());
+    };
+  }, [dispatch]);
+
+  // ✅ Don't handle redirect here - let InitialLayout handle it
+  useEffect(() => {
+    if (status === 'succeeded' && user) {
+      dispatch(clearAuthError());
+      // InitialLayout will handle the redirect based on auth state
+    }
+  }, [status, user, dispatch]);
 
   return (
     <KeyboardAvoidingView
@@ -92,40 +119,79 @@ const LoginScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={dynamicStyles.content}>
+          {/* Header */}
           <View style={dynamicStyles.header}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color={accentColor} />
+            </TouchableOpacity>
             <View style={dynamicStyles.logoContainer}>
-            {/* <Logo color={accentColor} width={250} height={80} /> */}
+              {/* <Logo color={accentColor} width={200} height={80} /> */}
             </View>
-            <AppText style={[dynamicStyles.title, { color: theme.textPrimary }]}>Welcome,</AppText>
-            <AppText style={[dynamicStyles.subtitle, { color: theme.textSecondary }]}>Sign in to continue</AppText>
+            <AppText style={[dynamicStyles.title, { color: theme.textPrimary }]}>Create Account,</AppText>
+            <AppText style={[dynamicStyles.subtitle, { color: theme.textSecondary }]}>Sign up to get started!</AppText>
           </View>
 
+          {/* Error Message */}
           {error && (
-            <View style={[dynamicStyles.errorContainer, { 
-              backgroundColor: `${accentColor}20`,
-              borderColor: `${accentColor}40`,
-            }]}>
+            <View style={dynamicStyles.errorContainer}>
               <Ionicons name="alert-circle" size={20} color={accentColor} />
               <AppText style={[dynamicStyles.errorText, { color: accentColor }]}>{error}</AppText>
             </View>
           )}
 
+          {/* Form */}
           <View style={dynamicStyles.form}>
+            {/* Name Input */}
+            <View style={dynamicStyles.inputContainer}>
+              <AppText style={[dynamicStyles.label, { color: theme.textSecondary }]}>Full Name</AppText>
+              <View
+                style={[
+                  dynamicStyles.inputWrapper,
+                  nameError && { borderColor: accentColor },
+                  { borderColor: nameError ? accentColor : theme.border, backgroundColor: theme.cardBackground },
+                ]}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={nameError ? accentColor : accentColor}
+                  style={dynamicStyles.inputIcon}
+                />
+                <TextInput
+                  style={[dynamicStyles.input, { color: theme.textPrimary }]}
+                  placeholder="Enter your full name"
+                  placeholderTextColor={theme.textSecondary}
+                  onChangeText={(text) => {
+                    setDisplayName(text);
+                    setNameError('');
+                  }}
+                  value={displayName}
+                  autoCapitalize="words"
+                  editable={status !== 'loading'}
+                />
+              </View>
+              {nameError ? (
+                <AppText style={[dynamicStyles.fieldError, { color: accentColor }]}>{nameError}</AppText>
+              ) : null}
+            </View>
+
+            {/* Email Input */}
             <View style={dynamicStyles.inputContainer}>
               <AppText style={[dynamicStyles.label, { color: theme.textSecondary }]}>Email</AppText>
               <View
                 style={[
                   dynamicStyles.inputWrapper,
-                  { 
-                    backgroundColor: theme.cardBackground,
-                    borderColor: emailError ? accentColor : theme.border,
-                  },
+                  emailError && { borderColor: accentColor },
+                  { borderColor: emailError ? accentColor : theme.border, backgroundColor: theme.cardBackground },
                 ]}
               >
                 <Ionicons
                   name="mail-outline"
                   size={20}
-                  color={accentColor}
+                  color={emailError ? accentColor : accentColor}
                   style={dynamicStyles.inputIcon}
                 />
                 <TextInput
@@ -139,7 +205,7 @@ const LoginScreen = () => {
                   value={email}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  editable={!isSubmitting}
+                  editable={status !== 'loading'}
                 />
               </View>
               {emailError ? (
@@ -147,21 +213,20 @@ const LoginScreen = () => {
               ) : null}
             </View>
 
+            {/* Password Input */}
             <View style={dynamicStyles.inputContainer}>
               <AppText style={[dynamicStyles.label, { color: theme.textSecondary }]}>Password</AppText>
               <View
                 style={[
                   dynamicStyles.inputWrapper,
-                  { 
-                    backgroundColor: theme.cardBackground,
-                    borderColor: passwordError ? accentColor : theme.border,
-                  },
+                  passwordError && { borderColor: accentColor },
+                  { borderColor: passwordError ? accentColor : theme.border, backgroundColor: theme.cardBackground },
                 ]}
               >
                 <Ionicons
                   name="lock-closed-outline"
                   size={20}
-                  color={accentColor}
+                  color={passwordError ? accentColor : accentColor}
                   style={dynamicStyles.inputIcon}
                 />
                 <TextInput
@@ -174,7 +239,7 @@ const LoginScreen = () => {
                   }}
                   value={password}
                   secureTextEntry={!showPassword}
-                  editable={!isSubmitting}
+                  editable={status !== 'loading'}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -192,70 +257,62 @@ const LoginScreen = () => {
               ) : null}
             </View>
 
-            <TouchableOpacity
-              style={dynamicStyles.forgotPassword}
-              onPress={() => router.push('/(pages)/forgot-password')}
-            >
-              <AppText style={[dynamicStyles.forgotPasswordText, { color: accentColor }]}>
-                Forgot Password?
-              </AppText>
-            </TouchableOpacity>
-
+            {/* Submit Button */}
             <TouchableOpacity
               style={[
                 dynamicStyles.submitButton,
-                { backgroundColor: accentColor },
-                isSubmitting && dynamicStyles.submitButtonDisabled,
+                { backgroundColor: accentColor, shadowColor: accentColor },
+                status === 'loading' && dynamicStyles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={isSubmitting}
+              disabled={status === 'loading'}
+              activeOpacity={0.8}
             >
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" />
+              {status === 'loading' ? (
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <AppText style={dynamicStyles.submitButtonText}>Sign In</AppText>
+                <AppText style={dynamicStyles.submitButtonText}>Sign Up</AppText>
               )}
             </TouchableOpacity>
 
+            {/* Divider */}
             <View style={dynamicStyles.divider}>
               <View style={[dynamicStyles.dividerLine, { backgroundColor: theme.border }]} />
               <AppText style={[dynamicStyles.dividerText, { color: theme.textSecondary }]}>OR</AppText>
               <View style={[dynamicStyles.dividerLine, { backgroundColor: theme.border }]} />
             </View>
 
+            {/* Social Login */}
             <TouchableOpacity
-              style={[dynamicStyles.socialButton, {
-                backgroundColor: theme.cardBackground,
-                borderColor: theme.border,
-              }]}
+              style={[dynamicStyles.socialButton, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
               activeOpacity={0.8}
               onPress={() => { }}
               disabled={status === 'loading'}
             >
-              <Ionicons name="logo-google" size={20} color={accentColor} />
-              <AppText style={[dynamicStyles.socialButtonText, { color: accentColor }]}>
-                Continue with Google
-              </AppText>
+              {status === 'loading' ? (
+                <ActivityIndicator color={accentColor} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color={accentColor} />
+                  <AppText style={[dynamicStyles.socialButtonText, { color: accentColor }]}>
+                    Continue with Google
+                  </AppText>
+                </>
+              )}
             </TouchableOpacity>
 
+            {/* Login Link */}
             <View style={dynamicStyles.toggleContainer}>
               <AppText style={[dynamicStyles.toggleText, { color: theme.textSecondary }]}>
-                Don't have an account?{' '}
+                Already have an account?{' '}
               </AppText>
-              <TouchableOpacity onPress={() => router.push('/(pages)/signup')}>
-                <AppText style={[dynamicStyles.toggleLink, { color: accentColor }]}>Sign Up</AppText>
+              <TouchableOpacity onPress={() => router.push('/(pages)/login')}>
+                <AppText style={[dynamicStyles.toggleLink, { color: accentColor }]}>Sign In</AppText>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </ScrollView>
-
-      {/* Full-screen loading overlay */}
-      {isSubmitting && (
-        <View style={[dynamicStyles.loadingOverlay, { backgroundColor: 'rgba(0,0,0,0.15)' }]}>
-          <ActivityIndicator size="large" color={accentColor} />
-        </View>
-      )}
     </KeyboardAvoidingView>
   );
 };
@@ -283,8 +340,15 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 32,
   },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 8,
+    zIndex: 1,
+  },
   logoContainer: {
-    marginBottom: 24,
+    marginBottom: 64,
   },
   title: {
     fontSize: 32,
@@ -292,17 +356,19 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontFamily: 'Bold',
   },
   subtitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '500',
     fontFamily: 'Bold',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: `${accentColor}20`,
     padding: 12,
     borderRadius: 12,
     marginBottom: 20,
     borderWidth: 1,
+    borderColor: `${accentColor}40`,
   },
   errorText: {
     fontSize: 14,
@@ -320,7 +386,7 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 8,
-  },
+  }, 
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -328,13 +394,19 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     borderWidth: 2,
     paddingHorizontal: 16,
     height: 56,
+    shadowColor: accentColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '700',
   },
   eyeIcon: {
     padding: 4,
@@ -343,20 +415,17 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
     marginLeft: 4,
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   submitButton: {
     height: 56,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
     marginBottom: 24,
   },
   submitButtonDisabled: {
@@ -366,6 +435,7 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
   divider: {
     flexDirection: 'row',
@@ -402,21 +472,13 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
   },
   toggleText: {
     fontSize: 15,
+    fontWeight: '400',
   },
   toggleLink: {
     fontSize: 15,
     fontWeight: '700',
   },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  },
 });
 
-export default LoginScreen;
+export default SignupScreen;
+

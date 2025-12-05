@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bolt-expo-nativewind",
+    "name": "kitfitx",
     "slug": "bolt-expo-nativewind",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,8 +13,8 @@
       "bundleIdentifier": "com.anonymous.bolt-expo-nativewind"
     },
     "splash": {
-      "backgroundColor": "#FFF0F8",
-      "resizeMode": "contain",
+      "backgroundColor": "#000000",
+      "resizeMode": "cover",
       "image": "./assets/images/icon.png"
     },
     "androidStatusBar": {

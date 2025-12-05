@@ -1,22 +1,25 @@
 import { Tabs } from 'expo-router';
 import { Flower as Home, Calendar, BookOpen, User, Apple, Dumbbell } from 'lucide-react-native';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function TabLayout() {
+  const { theme, accentColor } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#fff',
+          backgroundColor: theme.cardBackground,
           borderTopWidth: 1,
-          borderTopColor: '#f1e6f1',
+          borderTopColor: theme.border,
           paddingBottom: 8,
           paddingTop: 8,
           height: 100,
           paddingHorizontal: 2,
         },
-        tabBarActiveTintColor: '#ec4899',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: accentColor,
+        tabBarInactiveTintColor: theme.textSecondary,
         tabBarLabelStyle: {
           fontSize: 13,
           fontWeight: '700',
@@ -28,7 +31,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color === '#ec4899' ? '#ec4899' : color} />
+            <Home size={size} color={color} />
           ),
         }}
       />

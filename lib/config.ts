@@ -30,7 +30,7 @@ const STATIC_FALLBACKS: ExtraMap = {
     manifestExtra.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlyYW54anpxem9rbmlnb3NrZGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MzUwMjYsImV4cCI6MjA3MzExMTAyNn0.zE7Bzd_6-gZLixFqbeYnXnSN09jPocCfMCNixJlfJ5A',
   EXPO_PUBLIC_API_URL:
-    manifestExtra.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000',
+    manifestExtra.EXPO_PUBLIC_API_URL ?? 'http://10.89.34.1:4000',
 };
 
 function readEnv(key: EnvKey, options: EnvOptions = {}) {

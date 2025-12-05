@@ -5,18 +5,27 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { WorkoutProvider } from '@/contexts/WorkoutContext';
 import { AppProvider } from '../src/context/AppContext';
 import { ReduxProvider } from '@/contexts/ReduxProvider';
+import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
 import { useFonts } from 'expo-font';
 import SplashScreenAnimation from '@/components/core-components/SplashScreen';
 import InitialLayout from './InitialLayout';
 
+if (__DEV__) {
+  require('../reactotronConfig');
+}
+
 // Prevent the native splash screen from auto-hiding until we are ready
 import * as SplashScreen from 'expo-splash-screen';
-export default function RootLayout() {
+function RootLayoutInner() {
   useFrameworkReady();
   const [fontsLoaded] = useFonts({
     Bold: require('../assets/fonts/Sentient-Bold.otf'),
     Modak: require('../assets/fonts/Modak-Regular.ttf'),
   });
+
+  // CRITICAL: Call useTheme() BEFORE any conditional returns to maintain hook order
+  const { themeName } = useTheme();
+  const statusBarStyle = themeName === 'dark' ? 'light' : 'dark';
 
   useEffect(() => {
     SplashScreen.preventAutoHideAsync().catch(() => { });
@@ -37,14 +46,22 @@ export default function RootLayout() {
   return (
     <View style={styles.root}>
       <ReduxProvider>
-          <WorkoutProvider>
-            <AppProvider>
-              <InitialLayout />
-              <StatusBar style="dark" backgroundColor="#FFF0F8" />
-            </AppProvider>
-          </WorkoutProvider>
+        <WorkoutProvider>
+          <AppProvider>
+            <InitialLayout />
+            <StatusBar style={statusBarStyle} backgroundColor="#FFF0F8" />
+          </AppProvider>
+        </WorkoutProvider>
       </ReduxProvider>
     </View>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <RootLayoutInner />
+    </ThemeProvider>
   );
 }
 

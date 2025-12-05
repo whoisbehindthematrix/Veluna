@@ -6,6 +6,18 @@ import { buildPhaseInfo } from '../utils/phaseInfo';
 
 export type CyclePhase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
 
+export interface QuickNote {
+  id?: string;
+  date: string; // ISO date string
+  title: string;
+  icon?: string; // Icon name/emoji
+  text: string;
+  reminder: boolean;
+  reminderTime?: string; // ISO datetime if reminder is true
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface CycleEntry {
   date: string; // ISO date string
   isPeriod: boolean;
@@ -19,6 +31,7 @@ export interface CycleEntry {
     breastTenderness?: number;
   };
   notes?: string;
+  quickNotes?: QuickNote[]; // Quick notes for this date
 }
 
 export interface PhaseInfo {
@@ -65,6 +78,7 @@ export interface CycleState {
   cycleDay: number;
   entries: CycleEntry[];
   foodEntries: FoodLogEntry[];
+  quickNotes: QuickNote[]; // Global quick notes storage
   predictions: PredictionData;
   profile: {
     averageCycleLength: number;
@@ -94,6 +108,7 @@ const initialState: CycleState = {
   cycleDay: 1,
   entries: [],
   foodEntries: [],
+  quickNotes: [],
   predictions: emptyPredictions,
   profile: {
     averageCycleLength: 28,
@@ -221,6 +236,83 @@ const cycleSlice = createSlice({
 
     // Reset cycle data
     resetCycle: () => initialState,
+
+    // Quick Notes Actions
+    addQuickNote: (state, action: PayloadAction<QuickNote>) => {
+      const note = {
+        ...action.payload,
+        id: action.payload.id || `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: action.payload.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      state.quickNotes.push(note);
+      
+      // Also add to the entry for that date if it exists
+      const entryIndex = state.entries.findIndex(e => e.date === note.date);
+      if (entryIndex !== -1) {
+        if (!state.entries[entryIndex].quickNotes) {
+          state.entries[entryIndex].quickNotes = [];
+        }
+        state.entries[entryIndex].quickNotes!.push(note);
+      }
+    },
+
+    updateQuickNote: (state, action: PayloadAction<{ id: string; updates: Partial<QuickNote> }>) => {
+      const noteIndex = state.quickNotes.findIndex(n => n.id === action.payload.id);
+      if (noteIndex !== -1) {
+        state.quickNotes[noteIndex] = {
+          ...state.quickNotes[noteIndex],
+          ...action.payload.updates,
+          updatedAt: new Date().toISOString(),
+        };
+        
+        // Update in entries as well
+        state.entries.forEach(entry => {
+          if (entry.quickNotes) {
+            const entryNoteIndex = entry.quickNotes.findIndex(n => n.id === action.payload.id);
+            if (entryNoteIndex !== -1) {
+              entry.quickNotes[entryNoteIndex] = {
+                ...entry.quickNotes[entryNoteIndex],
+                ...action.payload.updates,
+                updatedAt: new Date().toISOString(),
+              };
+            }
+          }
+        });
+      }
+    },
+
+    deleteQuickNote: (state, action: PayloadAction<string>) => {
+      state.quickNotes = state.quickNotes.filter(n => n.id !== action.payload);
+      
+      // Remove from entries as well
+      state.entries.forEach(entry => {
+        if (entry.quickNotes) {
+          entry.quickNotes = entry.quickNotes.filter(n => n.id !== action.payload);
+        }
+      });
+    },
+
+    // Bulk load quick notes (for sync)
+    loadQuickNotes: (state, action: PayloadAction<QuickNote[]>) => {
+      state.quickNotes = action.payload;
+      
+      // Update entries with quick notes
+      action.payload.forEach(note => {
+        const entryIndex = state.entries.findIndex(e => e.date === note.date);
+        if (entryIndex !== -1) {
+          if (!state.entries[entryIndex].quickNotes) {
+            state.entries[entryIndex].quickNotes = [];
+          }
+          const existingNoteIndex = state.entries[entryIndex].quickNotes!.findIndex(n => n.id === note.id);
+          if (existingNoteIndex !== -1) {
+            state.entries[entryIndex].quickNotes![existingNoteIndex] = note;
+          } else {
+            state.entries[entryIndex].quickNotes!.push(note);
+          }
+        }
+      });
+    },
   
   },
 });
@@ -238,6 +330,10 @@ export const {
   addFoodEntry,
   deleteFoodEntry,
   updateFoodEntry,
+  addQuickNote,
+  updateQuickNote,
+  deleteQuickNote,
+  loadQuickNotes,
 } = cycleSlice.actions;
 
 export default cycleSlice.reducer;

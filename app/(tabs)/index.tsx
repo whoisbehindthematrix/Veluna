@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Zap } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import HormoneChartScreen from '../../src/screens/HormoneChartScreen';
@@ -11,40 +12,41 @@ import { addEntry } from '@/src/store/slices/cycleSlice';
 import WeekPhaseStrip from '@/components/WeekPhaseStrip';
 import Logo from '@/assets/images/logo';
 import PhaseDetailModal from '@/components/PhaseDetailModal';
+import QuickAction from '@/components/QuickAction';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function HomeScreen() {
   const { cycleState, dispatch } = useCycleRedux();
+  const { theme } = useTheme();
   const router = useRouter();
   const today = new Date().toISOString().split('T')[0];
   const [modalVisible, setModalVisible] = useState(false);
+  
+  const dynamicStyles = useMemo(() => createStyles(theme), [theme]);
 
   const currentPhaseData =
     phaseRecommendations[
       (cycleState.currentPhase.name as unknown) as keyof typeof phaseRecommendations
     ] || phaseRecommendations['menstrual'];
 
-    // console.log(cycleState.currentPhase, "<<<<<<<")
-
   const phaseColor = currentPhaseData.color;
 
-  const logSymptoms = () => {
-    const existingEntry = cycleState.entries.find(entry => entry.date === today);
-    if (existingEntry) {
-      Alert.alert('Symptoms', 'Symptoms already logged for today. Use calendar to edit.');
-    } else {
-      const newEntry = {
-        date: today,
-        isPeriod: false,
-        symptoms: {
-          mood: 3,
-          cramps: 1,
-          energy: 3,
-        },
-      };
-      dispatch(addEntry(newEntry));
-      Alert.alert('Success', 'Symptoms logged for today!');
-    }
+  // Helper function to add opacity to hex color
+  const addOpacityToHex = (hex: string, opacity: number) => {
+    const hexWithoutHash = hex.replace('#', '');
+    const r = parseInt(hexWithoutHash.substring(0, 2), 16);
+    const g = parseInt(hexWithoutHash.substring(2, 4), 16);
+    const b = parseInt(hexWithoutHash.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
+
+  // Create gradient colors blending phase color with theme background
+  const gradientColors: [string, string, string] = useMemo(() => [
+    addOpacityToHex(phaseColor, 0.80), // Start with phase color at 15% opacity
+    addOpacityToHex(phaseColor, 0.40), // Transition to 8% opacity
+    theme.background, // End with theme background
+  ] as [string, string, string], [phaseColor, theme.background]);
+
 
   const getDaysUntilNextPeriod = () => {
     if (!cycleState.predictions.nextPeriod) return undefined;
@@ -56,18 +58,24 @@ export default function HomeScreen() {
 
   return (
     <>
-      <ScrollView
-        style={[styles.container, { backgroundColor: phaseColor + '20' }]}
-        showsVerticalScrollIndicator={false}
+      <LinearGradient
+        colors={gradientColors}
+        style={dynamicStyles.gradientContainer}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       >
+        <ScrollView
+          style={dynamicStyles.container}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Logo */}
-        <View style={styles.logoContainer}>
-          <Logo color={phaseColor} width={250} height={80} />
+        <View style={dynamicStyles.logoContainer}>
+          <Logo color={phaseColor} width={210} height={80} />
         </View>
         <WeekPhaseStrip firstDay={0} />
 
         {/* Current Phase Card - Now Clickable */}
-        <View style={styles.topMargin}>
+        <View style={dynamicStyles.topMargin}>
           <PhaseCard
             phaseName={currentPhaseData.name}
             emoji={currentPhaseData.foods.icon}
@@ -79,13 +87,11 @@ export default function HomeScreen() {
           />
         </View>
 
-     
-
         {/* Quick Actions */}
-        <QuickActions onLogSymptoms={logSymptoms} />
+        <QuickAction />
 
         {/* Hormone Chart */}
-        <View style={{ marginTop: 12 }}>
+        <View style={dynamicStyles.hormoneChartContainer}>
           <HormoneChartScreen />
         </View>
 
@@ -131,7 +137,8 @@ export default function HomeScreen() {
             </View>
           </View>
         </View> */}
-      </ScrollView>
+        </ScrollView>
+      </LinearGradient>
 
       {/* Phase Detail Modal */}
       <PhaseDetailModal
@@ -144,48 +151,77 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+// ============================================================================
+// DYNAMIC STYLES (Theme-aware)
+// ============================================================================
+
+const createStyles = (theme: any) => StyleSheet.create({
+  gradientContainer: {
+    flex: 1,
+  },
+  container: { 
+    flex: 1,
+  },
   logoContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 40,
   },
-  topMargin: { marginTop: 0 },
-  section: { marginHorizontal: 20, marginBottom: 24 },
+  topMargin: { 
+    marginTop: 0 
+  },
+  hormoneChartContainer: {
+    marginTop: 12,
+  },
+  section: { 
+    marginHorizontal: 20, 
+    marginBottom: 24 
+  },
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Bold',
-    color: '#1f29375b',
     marginBottom: 12,
   },
   recommendationsBlock: {
-    backgroundColor: '#f3e8ff',
     padding: 20,
     borderRadius: 16,
     gap: 16,
   },
-  recommendationItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  recommendationEmoji: { fontSize: 24 },
-  recommendationContent: { flex: 1 },
+  recommendationItem: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-start', 
+    gap: 12 
+  },
+  recommendationEmoji: { 
+    fontSize: 24 
+  },
+  recommendationContent: { 
+    flex: 1 
+  },
   recommendationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
     marginBottom: 4,
   },
-  recommendationText: { fontSize: 14, color: '#4b5563', lineHeight: 20 },
+  recommendationText: { 
+    fontSize: 14, 
+    lineHeight: 20 
+  },
   tipsCard: {
-    backgroundColor: '#fffbeb',
     padding: 20,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
   },
-  tipsContent: { flex: 1, gap: 8 },
-  tipText: { fontSize: 14, color: '#92400e', lineHeight: 20 },
+  tipsContent: { 
+    flex: 1, 
+    gap: 8 
+  },
+  tipText: { 
+    fontSize: 14, 
+    lineHeight: 20 
+  },
 });

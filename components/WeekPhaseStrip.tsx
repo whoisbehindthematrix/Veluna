@@ -1,14 +1,20 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { View, Dimensions, Text } from 'react-native';
-import { WeekCalendar, CalendarProvider, DateObject } from 'react-native-calendars';
+import { View, Dimensions, Text, StyleSheet } from 'react-native';
+import { WeekCalendar, CalendarProvider } from 'react-native-calendars';
+import type { DateData } from 'react-native-calendars';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/src/store';
 import { phaseRecommendations } from '@/data/phaseRecommendation';
+import { useTheme } from '@/src/context/ThemeContext';
 
 type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
 
 function toISO(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().split('T')[0];
+  // Use local time components to avoid timezone issues
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function startOfWeek(d: Date, firstDay = 0) {
@@ -24,15 +30,18 @@ export default function WeekPhaseStrip({
   onDayPress
 }: {
   firstDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
-  onDayPress?: (d: DateObject) => void;
+  onDayPress?: (d: DateData) => void;
 }) {
   const cycle = useSelector((s: RootState) => s.cycle);
+  const { theme, accentColor } = useTheme();
 
   // State for calendar width and current date
   const [calendarWidth, setCalendarWidth] = useState<number>();
   const [currentDate, setCurrentDate] = useState(toISO(new Date()));
   const monthYear = useMemo(() => {
-    const d = new Date(currentDate);
+    // Parse date string (YYYY-MM-DD) as local time to avoid timezone issues
+    const [year, month, day] = currentDate.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
     return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
   }, [currentDate]);
   // Calculate calendar width from container
@@ -43,7 +52,9 @@ export default function WeekPhaseStrip({
 
   // Get week dates based on current date
   const getWeekDates = useCallback((dateString: string) => {
-    const date = new Date(dateString);
+    // Parse date string (YYYY-MM-DD) as local time to avoid timezone issues
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const start = startOfWeek(date, firstDay);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
@@ -60,8 +71,11 @@ export default function WeekPhaseStrip({
 
     if (!lastPeriod) return 'follicular';
 
-    const a = new Date(lastPeriod);
-    const b = new Date(dateISO);
+    // Parse dates as local time to avoid timezone issues
+    const [lastYear, lastMonth, lastDay] = lastPeriod.split('-').map(Number);
+    const [targetYear, targetMonth, targetDay] = dateISO.split('-').map(Number);
+    const a = new Date(lastYear, lastMonth - 1, lastDay);
+    const b = new Date(targetYear, targetMonth - 1, targetDay);
     const daysSince = Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
     let cycleDay = daysSince + 1;
 
@@ -108,6 +122,12 @@ export default function WeekPhaseStrip({
         justifyContent: 'center',
         position: 'relative',
       };
+      
+      // Add border for today's date to make it more visible
+      if (isToday) {
+        containerStyle.borderWidth = 2;
+        containerStyle.borderColor = phaseRecommendations[getPhaseForDate(d)]?.color ?? '#6b7280';
+      }
   
       // If ovulatory phase → add a small dot indicator
       let dotStyle: any = {};
@@ -140,7 +160,7 @@ export default function WeekPhaseStrip({
       };
     }
     return obj;
-  }, [currentDate, cycle.profile, cycle.entries, getWeekDates]);
+  }, [currentDate, cycle.profile, cycle.entries, getWeekDates, accentColor]);
   
 
   // Handle date change when scrolling
@@ -150,13 +170,26 @@ export default function WeekPhaseStrip({
 
   const todayISO = toISO(new Date());
 
+  // Create calendar theme with theme colors
+  const calendarTheme = useMemo(() => ({
+    calendarBackground: 'transparent',
+    textSectionTitleColor: theme.textSecondary,
+    arrowColor: theme.textPrimary,
+    todayTextColor: theme.textPrimary,
+    textDayFontWeight: '700' as const,
+    textMonthFontWeight: '800' as const,
+    textDayHeaderFontWeight: '700' as const,
+  }), [theme]);
+
   return (
     <View
-      style={{ marginHorizontal: 20, marginTop: 8, marginBottom: 16, backgroundColor: '#f1f1f2', borderRadius: 12 }}
+      style={[styles.container, {
+        backgroundColor: theme.cardBackground,
+      }]}
       onLayout={handleLayout}
     >
       {/* <View style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 0 }}>
-        <Text style={{ textAlign: 'center', fontSize: 13, fontWeight: '700', color: '#6b7280' }}>
+        <Text style={{ textAlign: 'center', fontSize: 13, fontWeight: '700', color: theme.textSecondary }}>
           {monthYear}
         </Text>
       </View> */}
@@ -173,18 +206,26 @@ export default function WeekPhaseStrip({
           markedDates={marked}
           allowShadow={false}
           onDayPress={onDayPress}
-          theme={{
-            calendarBackground: 'transparent',
-            textSectionTitleColor: '#6b7280',
-            arrowColor: '#111827',
-            todayTextColor: '#111827',
-            textDayFontWeight: '700',
-            textMonthFontWeight: '800',
-            textDayHeaderFontWeight: '700',
-          }}
-          style={{ borderRadius: 12, }}
+          theme={calendarTheme}
+          style={styles.calendar}
         />
       </CalendarProvider>
     </View>
   );
 }
+
+// ============================================================================
+// DYNAMIC STYLES (Theme-aware)
+// ============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 12,
+  },
+  calendar: {
+    borderRadius: 12,
+  },
+});

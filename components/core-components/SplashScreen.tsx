@@ -69,7 +69,7 @@ export default function SplashScreenAnimation() {
 				style={{ marginBottom: 14 }}
 			>
 				<Animated.Image
-					source={require('../../assets/images/menstal.png')}
+					source={require('../../assets/images/icon.png')}
 					style={{
 						width: 180,
 						height: 180,

@@ -1,13 +1,8 @@
 // src/store/slices/authSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { supabase, saveRefreshToken, deleteRefreshToken } from '@/lib/supabase';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-import { syncUser as syncUserApi } from '@/lib/api';
+import api, { saveTokens, removeTokens, getAccessToken } from '@/lib/api';
 import { resetCycle } from './cycleSlice';
-import { resetProfile } from './userProfileSlice';
-
-WebBrowser.maybeCompleteAuthSession();
+import { resetProfile, setProfile } from './userProfileSlice';
 
 // Types
 type User = {
@@ -15,12 +10,17 @@ type User = {
   email?: string | null;
 };
 
+type RequestStatus = 'idle' | 'loading' | 'failed' | 'succeeded';
+
 type AuthState = {
   user: User | null;
   accessToken: string | null;
   refreshTokenStored: boolean;
-  status: 'idle' | 'loading' | 'failed' | 'succeeded';
+  status: RequestStatus;
+  syncStatus: RequestStatus;
   error?: string | null;
+  onboardingCompleted: boolean;
+  isInitialized: boolean;
 };
 
 const initialState: AuthState = {
@@ -28,7 +28,10 @@ const initialState: AuthState = {
   accessToken: null,
   refreshTokenStored: false,
   status: 'idle',
+  syncStatus: 'idle',
   error: null,
+  onboardingCompleted: false,
+  isInitialized: false,
 };
 
 // Thunks
@@ -36,16 +39,43 @@ const initialState: AuthState = {
 export const signUpWithEmail = createAsyncThunk(
   'auth/signUpWithEmail',
   async (
-    { email, password }: { email: string; password: string },
-    { rejectWithValue }
+    { email, password, displayName }: { email: string; password: string; displayName?: string },
+    { rejectWithValue, dispatch }
   ) => {
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      // data.user may be null until confirmed — return what supabase returns
-      return data;
+      const res = await api.post("/auth/register", {
+        email,
+        password,
+        displayName, // Keep for backward compatibility if needed
+        fullName: displayName, // Backend expects fullName
+      });
+
+      // Save tokens if provided
+      if (res.data?.session?.access_token && res.data?.session?.refresh_token) {
+        await saveTokens(
+          res.data.session.access_token,
+          res.data.session.refresh_token
+        );
+      }
+
+      // ✅ Update userProfile if profile data is returned
+      if (res.data?.user?.profile) {
+        const profileData = res.data.user.profile;
+        const mappedProfile = {
+          ...profileData,
+          displayName: profileData.fullName || profileData.displayName,
+          firstName: profileData.firstName || profileData.fullName?.split(' ')[0] || '',
+          lastName: profileData.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || '',
+        };
+        dispatch(setProfile(mappedProfile as any));
+      }
+
+      return {
+        user: res.data?.user || null,
+        session: res.data?.session || null,
+      };
     } catch (err: any) {
-      return rejectWithValue(err.message || 'Sign up failed');
+      return rejectWithValue(err.response?.data?.message || err.message || 'Sign up failed');
     }
   }
 );
@@ -57,19 +87,25 @@ export const signInWithEmail = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const res = await api.post("/auth/login", {
         email,
         password,
       });
-      if (error) throw error;
-      // save refresh token securely if present
-      if (data?.session?.refresh_token) {
-        await saveRefreshToken(data.session.refresh_token);
+      // Save tokens
+      if (res.data?.session?.access_token && res.data?.session?.refresh_token) {
+        await saveTokens(
+          res.data.session.access_token,
+          res.data.session.refresh_token
+        );
       }
-      return data;
+
+      return {
+        user: res.data?.user || null,
+        session: res.data?.session || null,
+      };
     } catch (err: any) {
       console.log('signInWithEmail error', err);
-      return rejectWithValue(err.message || 'Signin failed');
+      return rejectWithValue(err.response?.data?.message || err.message || 'Signin failed');
     }
   }
 );
@@ -122,9 +158,8 @@ export const signOut = createAsyncThunk(
   'auth/signOut',
   async (_, { dispatch, rejectWithValue }) => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      await deleteRefreshToken();
+      // Remove tokens
+      await removeTokens();
       dispatch(resetCycle());
       dispatch(resetProfile());
       return true;
@@ -137,29 +172,82 @@ export const restoreSession = createAsyncThunk(
   'auth/restoreSession',
   async (_, { rejectWithValue }) => {
     try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      return data;
+      // Try to get user profile to verify token is valid
+      const res = await api.get("/auth/me");
+      
+      const user = res.data?.user || null;
+      
+      // Get onboarding completion status directly from backend
+      // Backend should set this flag when /onboarding/complete is called
+      const onboardingCompleted = user?.onboardingCompleted ?? false;
+      
+      if (__DEV__) {
+        console.log('🔄 [restoreSession] Onboarding status from backend:', {
+          onboardingCompleted,
+          userOnboardingCompleted: user?.onboardingCompleted,
+          hasUser: !!user,
+        });
+      }
+      
+      return {
+        user,
+        session: {
+          access_token: await getAccessToken(),
+        },
+        onboardingCompleted,
+      };
     } catch (err: any) {
-      return rejectWithValue(err.message || 'Restore session failed');
+      // If token is invalid, clear it
+      await removeTokens();
+      return {
+        user: null,
+        session: null,
+      };
     }
   }
 );
 
 export const syncUser = createAsyncThunk(
   'auth/syncUser',
-  async (_, { rejectWithValue, getState }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     try {
-      const response = await syncUserApi();
-      console.log('syncUser response', response);
+      const res = await api.post("/auth/sync");
+      
+      const profileData = res.data?.user?.profile || null;
+      
+      // ✅ Update userProfile slice with synced profile data
+      if (profileData) {
+        // Map backend fullName to userProfile structure
+        const mappedProfile = {
+          ...profileData,
+          // Map fullName to displayName/firstName/lastName if needed
+          displayName: profileData.fullName || profileData.displayName,
+          firstName: profileData.firstName || profileData.fullName?.split(' ')[0] || '',
+          lastName: profileData.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || '',
+        };
+        dispatch(setProfile(mappedProfile as any));
+      }
+      
+      // Get onboarding completion status from backend response
+      // Backend should return this in user.onboardingCompleted after /onboarding/complete is called
+      const onboardingCompleted = res.data?.user?.onboardingCompleted ?? false;
+      
+      if (__DEV__) {
+        console.log('🔄 [syncUser] Onboarding status from backend:', {
+          onboardingCompleted,
+          userOnboardingCompleted: res.data?.user?.onboardingCompleted,
+          hasUser: !!res.data?.user,
+        });
+      }
       
       // Update user state with synced data
       return {
-        user: response.user,
-        profile: response.user.profile,
+        user: res.data?.user || null,
+        profile: profileData,
+        onboardingCompleted,
       };
     } catch (err: any) {
-      return rejectWithValue(err.message || 'Failed to sync user');
+      return rejectWithValue(err.response?.data?.message || err.message || 'Failed to sync user');
     }
   }
 );
@@ -183,6 +271,13 @@ const authSlice = createSlice({
     clearAuthError(state) {
       state.error = null;
       state.status = 'idle';
+      state.syncStatus = 'idle';
+    },
+    setOnboardingCompleted(state, action: PayloadAction<boolean>) {
+      state.onboardingCompleted = action.payload;
+      if (__DEV__) {
+        console.log('✅ [AuthSlice] setOnboardingCompleted:', action.payload);
+      }
     },
   },
   extraReducers: (builder) => {
@@ -194,10 +289,11 @@ const authSlice = createSlice({
       })
       .addCase(signInWithEmail.fulfilled, (s, action) => {
         s.status = 'succeeded';
-        const session = (action.payload as any)?.session;
-        s.user = session?.user ?? null;
-        s.accessToken = session?.access_token ?? null;
-        s.refreshTokenStored = !!session?.refresh_token;
+        const payload = action.payload as any;
+        s.user = payload?.user ?? null;
+        s.accessToken = payload?.session?.access_token ?? null;
+        s.refreshTokenStored = !!payload?.session?.refresh_token;
+        s.onboardingCompleted = payload?.user?.onboardingCompleted ?? false;
       })
       .addCase(signInWithEmail.rejected, (s, action) => {
         s.status = 'failed';
@@ -211,9 +307,11 @@ const authSlice = createSlice({
       })
       .addCase(signUpWithEmail.fulfilled, (s, action) => {
         s.status = 'succeeded';
-        const session = (action.payload as any)?.session;
-        s.user = session?.user ?? null;
-        s.accessToken = session?.access_token ?? null;
+        const payload = action.payload as any;
+        s.user = payload?.user ?? null;
+        s.accessToken = payload?.session?.access_token ?? null;
+        s.refreshTokenStored = !!payload?.session?.refresh_token;
+        s.onboardingCompleted = payload?.user?.onboardingCompleted ?? false;
       })
       .addCase(signUpWithEmail.rejected, (s, action) => {
         s.status = 'failed';
@@ -229,7 +327,9 @@ const authSlice = createSlice({
         s.user = null;
         s.accessToken = null;
         s.refreshTokenStored = false;
-        s.status = 'idle'; // Reset to idle after logout
+        s.onboardingCompleted = false;
+        s.status = 'idle';
+        s.syncStatus = 'idle';
       })
       .addCase(signOut.rejected, (s, action) => {
         s.status = 'failed';
@@ -242,35 +342,55 @@ const authSlice = createSlice({
         s.error = null;
       })
       .addCase(restoreSession.fulfilled, (s, action) => {
-        s.status = 'idle'; // Set to idle instead of succeeded
-        const session = (action.payload as any)?.session;
-        if (session) {
-          s.user = session.user ?? null;
-          s.accessToken = session.access_token ?? null;
+        s.status = 'idle';
+        s.isInitialized = true;
+        const payload = action.payload as any;
+        if (payload?.user && payload?.session) {
+          s.user = payload.user;
+          s.accessToken = payload.session.access_token ?? null;
+          s.refreshTokenStored = !!payload.session.refresh_token;
+          s.onboardingCompleted = payload.user?.onboardingCompleted ?? false;
         } else {
           s.user = null;
           s.accessToken = null;
+          s.refreshTokenStored = false;
+          s.onboardingCompleted = false;
         }
       })
-      .addCase(restoreSession.rejected, (s, action) => {
-        s.status = 'failed';
-        s.error = action.payload as string;
+      .addCase(restoreSession.rejected, (s) => {
+        s.status = 'idle';
+        s.isInitialized = true;
+        s.user = null;
+        s.accessToken = null;
+        s.refreshTokenStored = false;
+        s.onboardingCompleted = false;
+        s.error = null;
       })
       .addCase(syncUser.pending, (s) => {
-        s.status = 'loading';
+        s.syncStatus = 'loading';
         s.error = null;
       })
       .addCase(syncUser.fulfilled, (s, action) => {
-        s.status = 'succeeded';
+        s.syncStatus = 'succeeded';
         s.user = action.payload.user;
-        // Access token stays the same (from Supabase session)
+        // Update onboardingCompleted from backend response
+        const backendOnboardingStatus = action.payload.onboardingCompleted ?? action.payload.user?.onboardingCompleted ?? false;
+        s.onboardingCompleted = backendOnboardingStatus;
+        
+        if (__DEV__) {
+          console.log('🔄 [AuthSlice] syncUser fulfilled:', {
+            onboardingCompleted: backendOnboardingStatus,
+            fromPayload: action.payload.onboardingCompleted,
+            fromUser: action.payload.user?.onboardingCompleted,
+          });
+        }
       })
       .addCase(syncUser.rejected, (s, action) => {
-        s.status = 'failed';
+        s.syncStatus = 'failed';
         s.error = action.payload as string;
       });
   },
 });
 
-export const { setUser, clearAuthError } = authSlice.actions;
+export const { setUser, clearAuthError, setOnboardingCompleted } = authSlice.actions;
 export const authReducer = authSlice.reducer;

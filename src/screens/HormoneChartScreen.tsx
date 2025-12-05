@@ -1,17 +1,21 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useApp } from '../context/AppContext';
 import HormoneChart from '../components/HormoneChart';
 import { estimateHormonesForCycle } from '../lib/hormoneEngine';
 import AppButton from '@/components/core-components/Button';
 import AppText from '@/components/core-components/AppText';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function HormoneChartScreen() {
   const { mock } = useApp();
+  const { theme, accentColor } = useTheme();
   const [range, setRange] = useState<'1y'|'6m'|'4m'|'1m'|'this'>('1m');
   const [hormone, setHormone] = useState<'all'|'estrogen'|'progesterone'|'lh'|'fsh'>('all');
   const todayISO = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState<string>(todayISO);
+  
+  const dynamicStyles = useMemo(() => createStyles(theme, accentColor), [theme, accentColor]);
 
   const data = useMemo(() => {
     // build concatenated estimates from cycles within the selected range
@@ -40,24 +44,24 @@ export default function HormoneChartScreen() {
   }, [data, selectedDate]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <View style={{ padding: 16 }}>
+    <ScrollView style={[dynamicStyles.container, { backgroundColor: theme.background }]}>
+      <View style={dynamicStyles.content}>
         {/* Header */}
-        <View style={{ marginBottom: 16 }}>
-           <AppText variant="bold" style={{ fontSize: 24, color: '#1e293b', textAlign: 'center', marginBottom: 8 }}>
+        <View style={dynamicStyles.header}>
+           <AppText variant="bold" style={[dynamicStyles.title, { color: theme.textPrimary }]}>
             Hormone Cycle Dynamics
            </AppText>
-          <Text style={{ fontSize: 14, color: '#64748b', textAlign: 'center' }}>
+          <Text style={[dynamicStyles.subtitle, { color: theme.textSecondary }]}>
             Track your hormonal patterns over time
           </Text>
         </View>
 
         {/* Range Filter Chips */}
-        <View style={{ marginBottom: 12 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
+        <View style={dynamicStyles.filterSection}>
+          <Text style={[dynamicStyles.filterLabel, { color: theme.textPrimary }]}>
             Time Range
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View style={dynamicStyles.chipContainer}>
             {([
               { k: '1y', label: '1Y' },
               { k: '6m', label: '6M' },
@@ -68,23 +72,16 @@ export default function HormoneChartScreen() {
               <TouchableOpacity 
                 key={opt.k} 
                 onPress={() => setRange(opt.k)} 
-                style={{ 
-                  paddingVertical: 8, 
-                  paddingHorizontal: 16, 
-                  borderRadius: 20, 
-                  backgroundColor: range === opt.k ? '#0ea5e9' : '#e2e8f0',
-                  shadowColor: range === opt.k ? '#0ea5e9' : '#000',
-                  shadowOffset: { width: 0, height: 2 },
+                style={[dynamicStyles.rangeChip, {
+                  backgroundColor: range === opt.k ? accentColor : theme.primarySoft,
+                  shadowColor: range === opt.k ? accentColor : '#000',
                   shadowOpacity: range === opt.k ? 0.3 : 0.1,
-                  shadowRadius: 4,
                   elevation: range === opt.k ? 4 : 2,
-                }}
+                }]}
               >
-                <Text style={{ 
-                  color: range === opt.k ? '#fff' : '#475569', 
-                  fontSize: 12, 
-                  fontWeight: '700' 
-                }}>
+                <Text style={[dynamicStyles.chipText, {
+                  color: range === opt.k ? '#fff' : theme.textSecondary,
+                }]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -93,11 +90,11 @@ export default function HormoneChartScreen() {
         </View>
 
         {/* Hormone Filter Chips */}
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
+        <View style={dynamicStyles.filterSection}>
+          <Text style={[dynamicStyles.filterLabel, { color: theme.textPrimary }]}>
             Hormone Filter
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          <View style={dynamicStyles.hormoneChipContainer}>
             {([
               { k: 'all', label: 'ALL' },
               { k: 'estrogen', label: 'EST' },
@@ -108,20 +105,14 @@ export default function HormoneChartScreen() {
               <TouchableOpacity 
                 key={opt.k} 
                 onPress={() => setHormone(opt.k)} 
-                style={{ 
-                  paddingVertical: 6, 
-                  paddingHorizontal: 12, 
-                  borderRadius: 16, 
-                  backgroundColor: hormone === opt.k ? '#10b981' : '#f1f5f9',
-                  borderWidth: 2,
-                  borderColor: hormone === opt.k ? '#10b981' : '#e2e8f0',
-                }}
+                style={[dynamicStyles.hormoneChip, {
+                  backgroundColor: hormone === opt.k ? accentColor : theme.primarySoft,
+                  borderColor: hormone === opt.k ? accentColor : theme.border,
+                }]}
               >
-                <Text style={{ 
-                  color: hormone === opt.k ? '#fff' : '#64748b', 
-                  fontSize: 12, 
-                  fontWeight: '700' 
-                }}>
+                <Text style={[dynamicStyles.chipText, {
+                  color: hormone === opt.k ? '#fff' : theme.textSecondary,
+                }]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -130,51 +121,37 @@ export default function HormoneChartScreen() {
         </View>
 
         {/* Chart */}
-        <View style={{ 
-          backgroundColor: '#fff', 
-          borderRadius: 12, 
-          padding: 16, 
-          marginBottom: 16,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 4,
-        }}>
+        <View style={[dynamicStyles.chartCard, {
+          backgroundColor: theme.cardBackground,
+          // shadowColor: accentColor,
+        }]}>
           <HormoneChart data={data} selectedDate={selectedDate} hormone={hormone} onDateChange={setSelectedDate} />
         </View>
 
         {/* Selected Date Values */}
         {todayValues && (
-          <View style={{ 
-            backgroundColor: '#fff', 
-            borderRadius: 12, 
-            padding: 16,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            elevation: 4,
-          }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 12 }}>
+          <View style={[dynamicStyles.valuesCard, {
+            backgroundColor: theme.cardBackground,
+          }]}>
+            <Text style={[dynamicStyles.valuesTitle, { color: theme.textPrimary }]}>
               Selected Date: {todayValues.date}
             </Text>
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#10b981' }}>Estrogen</Text>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b' }}>{Math.round(todayValues.estrogen)} pg/mL</Text>
+            <View style={dynamicStyles.valuesList}>
+              <View style={[dynamicStyles.valueRow, { borderBottomColor: theme.border }]}>
+                <Text style={[dynamicStyles.valueLabel, { color: '#10b981' }]}>Estrogen</Text>
+                <Text style={[dynamicStyles.valueText, { color: theme.textPrimary }]}>{Math.round(todayValues.estrogen)} pg/mL</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#3b82f6' }}>Progesterone</Text>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b' }}>{Math.round(todayValues.progesterone)} ng/mL</Text>
+              <View style={[dynamicStyles.valueRow, { borderBottomColor: theme.border }]}>
+                <Text style={[dynamicStyles.valueLabel, { color: '#3b82f6' }]}>Progesterone</Text>
+                <Text style={[dynamicStyles.valueText, { color: theme.textPrimary }]}>{Math.round(todayValues.progesterone)} ng/mL</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#f97316' }}>LH</Text>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b' }}>{Math.round(todayValues.lh)} mIU/mL</Text>
+              <View style={[dynamicStyles.valueRow, { borderBottomColor: theme.border }]}>
+                <Text style={[dynamicStyles.valueLabel, { color: '#f97316' }]}>LH</Text>
+                <Text style={[dynamicStyles.valueText, { color: theme.textPrimary }]}>{Math.round(todayValues.lh)} mIU/mL</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#ec4899' }}>FSH</Text>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1e293b' }}>{Math.round(todayValues.fsh)} mIU/mL</Text>
+              <View style={dynamicStyles.valueRow}>
+                <Text style={[dynamicStyles.valueLabel, { color: '#ec4899' }]}>FSH</Text>
+                <Text style={[dynamicStyles.valueText, { color: theme.textPrimary }]}>{Math.round(todayValues.fsh)} mIU/mL</Text>
               </View>
             </View>
           </View>
@@ -183,3 +160,102 @@ export default function HormoneChartScreen() {
     </ScrollView>
   );
 }
+
+// ============================================================================
+// DYNAMIC STYLES (Theme-aware)
+// ============================================================================
+
+const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: 16,
+  },
+  header: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  filterSection: {
+    marginBottom: 12,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  rangeChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+  },
+  hormoneChipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  hormoneChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chartCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  valuesCard: {
+    borderRadius: 12,
+    padding: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  valuesTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  valuesList: {
+    gap: 8,
+  },
+  valueRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+  },
+  valueLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  valueText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});

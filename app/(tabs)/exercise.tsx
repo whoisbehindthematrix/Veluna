@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, Image } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, Image, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useWorkout } from '@/contexts/WorkoutContext';
 import { workoutTemplates, WorkoutTemplate, WorkoutSet } from '@/data/strongWorkouts';
@@ -8,13 +8,17 @@ import { Play, Plus, X, Clock, Zap, Target, TrendingUp, CircleCheck as CheckCirc
 import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { exerciseLibrary, exerciseById } from '@/data/exerciseLibrary';
-import { styles } from '@/styles/screens/ExerciseScreen.styles';
+import { useTheme } from '@/src/context/ThemeContext';
 import { useCycleStore } from '@/hooks/useCycleStore';
 
 export default function ExerciseScreen() {
   const { cycle } = useCycleStore();
+  const { theme, accentColor } = useTheme();
   const { state: workoutState, dispatch } = useWorkout();
   const router = useRouter();
+  
+  const { width, height } = Dimensions.get('window');
+  const dynamicStyles = useMemo(() => createStyles(theme, accentColor, width, height), [theme, accentColor, width, height]);
 
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showActiveWorkout, setShowActiveWorkout] = useState(false);
@@ -131,114 +135,145 @@ export default function ExerciseScreen() {
     return acc;
   }, {} as any);
 
+  // Helper function to get difficulty badge style
+  const getDifficultyBadgeStyle = (difficulty: string) => {
+    const difficultyKey = `difficulty${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}` as 'difficultyBeginner' | 'difficultyIntermediate' | 'difficultyAdvanced';
+    return dynamicStyles[difficultyKey] || dynamicStyles.difficultyBadge;
+  };
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[dynamicStyles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <LinearGradient
-        colors={['#3b82f6', '#f8fafc']}
-        style={styles.header}
+        colors={theme.headerGradient as [string, string]}
+        style={dynamicStyles.header}
       >
-        <View style={styles.headerContent}>
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>Fitness Exercise</Text>
-            <Text style={styles.subtitle}>Track your workouts and progress</Text>
+        <View style={dynamicStyles.headerContent}>
+          <View style={dynamicStyles.textContainer}>
+            <Text style={[dynamicStyles.title, { color: theme.textPrimary }]}>Fitness Exercise</Text>
+            <Text style={[dynamicStyles.subtitle, { color: theme.textSecondary }]}>Track your workouts and progress</Text>
           </View>
-          <View style={styles.imageContainer}>
-            <LinearGradient colors={['#7fa8e9ff', '#3b82f6']} style={{ backgroundColor: '#fef3c7', height: 120, width: 120, borderRadius: 100, position: 'absolute', bottom: 12, right: 20, }}></LinearGradient>
+          <View style={dynamicStyles.imageContainer}>
+            <LinearGradient 
+              colors={[`${accentColor}80`, accentColor]} 
+              style={{ 
+                backgroundColor: `${accentColor}20`, 
+                height: 120, 
+                width: 120, 
+                borderRadius: 100, 
+                position: 'absolute', 
+                bottom: 12, 
+                right: 20, 
+              }}
+            />
             <Image
               source={require('../../assets/images/ex.png')}
-              style={styles.headerImage}
+              style={dynamicStyles.headerImage}
               resizeMode="contain"
             />
-
           </View>
         </View>
       </LinearGradient>
 
       {/* Workout Stats */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryHeader}>
-          <TrendingUp size={24} color="#3b82f6" />
-          <Text style={styles.summaryTitle}>Your Progress</Text>
+      <View style={[dynamicStyles.summaryCard, { 
+        backgroundColor: theme.cardBackground,
+        shadowColor: accentColor,
+      }]}>
+        <View style={dynamicStyles.summaryHeader}>
+          <TrendingUp size={24} color={accentColor} />
+          <Text style={[dynamicStyles.summaryTitle, { color: theme.textPrimary }]}>Your Progress</Text>
         </View>
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Dumbbell size={20} color="#8b5cf6" />
-            <Text style={styles.statNumber}>{totalWorkouts}</Text>
-            <Text style={styles.statLabel}>Total Workouts</Text>
+        <View style={dynamicStyles.statsGrid}>
+          <View style={dynamicStyles.statItem}>
+            <Dumbbell size={20} color={accentColor} />
+            <Text style={[dynamicStyles.statNumber, { color: theme.textPrimary }]}>{totalWorkouts}</Text>
+            <Text style={[dynamicStyles.statLabel, { color: theme.textSecondary }]}>Total Workouts</Text>
           </View>
-          <View style={styles.statItem}>
-            <Weight size={20} color="#f59e0b" />
-            <Text style={styles.statNumber}>{Math.round(totalVolume / 1000)}k</Text>
-            <Text style={styles.statLabel}>Total Volume</Text>
+          <View style={dynamicStyles.statItem}>
+            <Weight size={20} color={accentColor} />
+            <Text style={[dynamicStyles.statNumber, { color: theme.textPrimary }]}>{Math.round(totalVolume / 1000)}k</Text>
+            <Text style={[dynamicStyles.statLabel, { color: theme.textSecondary }]}>Total Volume</Text>
           </View>
-          <View style={styles.statItem}>
-            <Target size={20} color="#10b981" />
-            <Text style={styles.statNumber}>{todaysWorkouts.length}</Text>
-            <Text style={styles.statLabel}>Today</Text>
+          <View style={dynamicStyles.statItem}>
+            <Target size={20} color={accentColor} />
+            <Text style={[dynamicStyles.statNumber, { color: theme.textPrimary }]}>{todaysWorkouts.length}</Text>
+            <Text style={[dynamicStyles.statLabel, { color: theme.textSecondary }]}>Today</Text>
           </View>
         </View>
       </View>
 
       {/* Active Workout Button */}
       {workoutState.isWorkoutActive && (
-        <View style={styles.section}>
+        <View style={dynamicStyles.section}>
           <TouchableOpacity
-            style={styles.activeWorkoutButton}
+            style={[dynamicStyles.activeWorkoutButton, { 
+              backgroundColor: accentColor,
+              shadowColor: accentColor,
+            }]}
             onPress={() => setShowActiveWorkout(true)}
           >
-            <View style={styles.activeWorkoutContent}>
-              <View style={styles.activeWorkoutInfo}>
-                <Text style={styles.activeWorkoutTitle}>
+            <View style={dynamicStyles.activeWorkoutContent}>
+              <View style={dynamicStyles.activeWorkoutInfo}>
+                <Text style={dynamicStyles.activeWorkoutTitle}>
                   {workoutState.currentSession?.templateName}
                 </Text>
-                <Text style={styles.activeWorkoutSubtitle}>Workout in progress</Text>
+                <Text style={[dynamicStyles.activeWorkoutSubtitle, { color: theme.textSecondary }]}>Workout in progress</Text>
               </View>
-              <View style={styles.pulseIndicator} />
+              <View style={[dynamicStyles.pulseIndicator, { backgroundColor: '#10b981' }]} />
             </View>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Quick Start */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Start</Text>
+      <View style={dynamicStyles.section}>
+        <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Quick Start</Text>
         <TouchableOpacity
-          style={styles.startWorkoutButton}
+          style={[dynamicStyles.startWorkoutButton, { backgroundColor: accentColor }]}
           onPress={() => setShowTemplateModal(true)}
         >
           <Play size={24} color="#fff" />
-          <Text style={styles.startWorkoutText}>Start Workout</Text>
+          <Text style={dynamicStyles.startWorkoutText}>Start Workout</Text>
         </TouchableOpacity>
 
-        <View style={styles.quickRow}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowLibrary(true)}>
-            <Dumbbell size={20} color="#3b82f6" />
-            <Text style={styles.secondaryButtonText}>Browse Exercises</Text>
+        <View style={dynamicStyles.quickRow}>
+          <TouchableOpacity 
+            style={[dynamicStyles.secondaryButton, { 
+              borderColor: theme.border,
+              backgroundColor: theme.primarySoft,
+            }]} 
+            onPress={() => setShowLibrary(true)}
+          >
+            <Dumbbell size={20} color={accentColor} />
+            <Text style={[dynamicStyles.secondaryButtonText, { color: accentColor }]}>Browse Exercises</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Workout Templates */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Workout Templates</Text>
+      <View style={dynamicStyles.section}>
+        <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Workout Templates</Text>
         {workoutTemplates.map((template) => (
           <TouchableOpacity
             key={template.id}
-            style={styles.templateCard}
+            style={[dynamicStyles.templateCard, { 
+              backgroundColor: theme.cardBackground,
+              shadowColor: accentColor,
+            }]}
             onPress={() => startWorkout(template)}
           >
-            <View style={styles.templateHeader}>
-              <Text style={styles.templateName}>{template.name}</Text>
-              <View style={[styles.difficultyBadge, styles[`difficulty${template.difficulty.charAt(0).toUpperCase() + template.difficulty.slice(1)}`]]}>
-                <Text style={styles.difficultyText}>{template.difficulty}</Text>
+            <View style={dynamicStyles.templateHeader}>
+              <Text style={[dynamicStyles.templateName, { color: theme.textPrimary }]}>{template.name}</Text>
+              <View style={[dynamicStyles.difficultyBadge, getDifficultyBadgeStyle(template.difficulty)]}>
+                <Text style={dynamicStyles.difficultyText}>{template.difficulty}</Text>
               </View>
             </View>
-            <Text style={styles.templateDescription}>{template.description}</Text>
-            <View style={styles.templateStats}>
-              <Text style={styles.templateStat}>⏱️ {template.estimatedDuration} min</Text>
-              <Text style={styles.templateStat}>💪 {template.exercises.length} exercises</Text>
+            <Text style={[dynamicStyles.templateDescription, { color: theme.textSecondary }]}>{template.description}</Text>
+            <View style={dynamicStyles.templateStats}>
+              <Text style={[dynamicStyles.templateStat, { color: theme.textSecondary }]}>⏱️ {template.estimatedDuration} min</Text>
+              <Text style={[dynamicStyles.templateStat, { color: theme.textSecondary }]}>💪 {template.exercises.length} exercises</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -246,18 +281,21 @@ export default function ExerciseScreen() {
 
       {/* Recent Workouts */}
       {workoutState.sessions.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Workouts</Text>
+        <View style={dynamicStyles.section}>
+          <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Recent Workouts</Text>
           {workoutState.sessions.slice(-5).reverse().map((session) => (
-            <View key={session.id} style={styles.sessionCard}>
-              <View style={styles.sessionHeader}>
+            <View key={session.id} style={[dynamicStyles.sessionCard, { 
+              backgroundColor: theme.primarySoft,
+              borderLeftColor: '#10b981',
+            }]}>
+              <View style={dynamicStyles.sessionHeader}>
                 <CheckCircle size={20} color="#10b981" />
-                <Text style={styles.sessionName}>{session.templateName}</Text>
-                <Text style={styles.sessionDate}>{new Date(session.date).toLocaleDateString()}</Text>
+                <Text style={[dynamicStyles.sessionName, { color: theme.textPrimary }]}>{session.templateName}</Text>
+                <Text style={[dynamicStyles.sessionDate, { color: theme.textSecondary }]}>{new Date(session.date).toLocaleDateString()}</Text>
               </View>
-              <View style={styles.sessionStats}>
-                <Text style={styles.sessionStat}>{session.duration} min</Text>
-                <Text style={styles.sessionStat}>{Math.round(session.totalVolume)} lbs total</Text>
+              <View style={dynamicStyles.sessionStats}>
+                <Text style={[dynamicStyles.sessionStat, { color: '#059669' }]}>{session.duration} min</Text>
+                <Text style={[dynamicStyles.sessionStat, { color: '#059669' }]}>{Math.round(session.totalVolume)} lbs total</Text>
               </View>
             </View>
           ))}
@@ -271,27 +309,27 @@ export default function ExerciseScreen() {
         animationType="slide"
         onRequestClose={() => setShowTemplateModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose Workout</Text>
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={[dynamicStyles.modalContent, { backgroundColor: theme.cardBackground }]}>
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={[dynamicStyles.modalTitle, { color: theme.textPrimary }]}>Choose Workout</Text>
               <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.templateList}>
+            <ScrollView style={dynamicStyles.templateList}>
               {workoutTemplates.map((template) => (
                 <TouchableOpacity
                   key={template.id}
-                  style={styles.modalTemplateCard}
+                  style={[dynamicStyles.modalTemplateCard, { backgroundColor: theme.primarySoft }]}
                   onPress={() => startWorkout(template)}
                 >
-                  <Text style={styles.modalTemplateName}>{template.name}</Text>
-                  <Text style={styles.modalTemplateDescription}>{template.description}</Text>
-                  <View style={styles.modalTemplateStats}>
-                    <Text style={styles.modalTemplateStat}>⏱️ {template.estimatedDuration} min</Text>
-                    <Text style={styles.modalTemplateStat}>💪 {template.exercises.length} exercises</Text>
+                  <Text style={[dynamicStyles.modalTemplateName, { color: theme.textPrimary }]}>{template.name}</Text>
+                  <Text style={[dynamicStyles.modalTemplateDescription, { color: theme.textSecondary }]}>{template.description}</Text>
+                  <View style={dynamicStyles.modalTemplateStats}>
+                    <Text style={[dynamicStyles.modalTemplateStat, { color: theme.textSecondary }]}>⏱️ {template.estimatedDuration} min</Text>
+                    <Text style={[dynamicStyles.modalTemplateStat, { color: theme.textSecondary }]}>💪 {template.exercises.length} exercises</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -306,70 +344,89 @@ export default function ExerciseScreen() {
         animationType="slide"
         onRequestClose={() => setShowActiveWorkout(false)}
       >
-        <View style={styles.workoutContainer}>
-          <View style={styles.workoutHeader}>
+        <View style={[dynamicStyles.workoutContainer, { backgroundColor: theme.background }]}>
+          <View style={[dynamicStyles.workoutHeader, { 
+            backgroundColor: theme.cardBackground,
+            borderBottomColor: theme.border,
+          }]}>
             <TouchableOpacity onPress={() => setShowActiveWorkout(false)}>
-              <X size={24} color="#6b7280" />
+              <X size={24} color={theme.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.workoutTitle}>
+            <Text style={[dynamicStyles.workoutTitle, { color: theme.textPrimary }]}>
               {workoutState.currentSession?.templateName}
             </Text>
-            <TouchableOpacity onPress={endWorkout} style={styles.endWorkoutButton}>
-              <Text style={styles.endWorkoutText}>Finish</Text>
+            <TouchableOpacity onPress={endWorkout} style={dynamicStyles.endWorkoutButton}>
+              <Text style={dynamicStyles.endWorkoutText}>Finish</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.workoutContent}>
+          <ScrollView style={dynamicStyles.workoutContent}>
             {workoutState.currentSession?.exercises.map((exercise, exerciseIndex) => (
-              <View key={exercise.id} style={styles.exerciseContainer}>
-                <View style={styles.exerciseHeader}>
+              <View key={exercise.id} style={[dynamicStyles.exerciseContainer, { 
+                backgroundColor: theme.cardBackground,
+                shadowColor: accentColor,
+              }]}>
+                <View style={dynamicStyles.exerciseHeader}>
                   <TouchableOpacity onPress={() => openExerciseDetails(exercise.exerciseId)} style={{ flex: 1 }}>
-                    <Text style={styles.exerciseName}>{exercise.exercise.name}</Text>
+                    <Text style={[dynamicStyles.exerciseName, { color: theme.textPrimary }]}>{exercise.exercise.name}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openExerciseDetails(exercise.exerciseId)} style={styles.infoButton}>
-                    <Info size={18} color="#6b7280" />
+                  <TouchableOpacity 
+                    onPress={() => openExerciseDetails(exercise.exerciseId)} 
+                    style={[dynamicStyles.infoButton, { backgroundColor: theme.primarySoft }]}
+                  >
+                    <Info size={18} color={theme.textSecondary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => addSet(exercise.id)}
-                    style={styles.addSetButton}
+                    style={[dynamicStyles.addSetButton, { backgroundColor: `${accentColor}20` }]}
                   >
-                    <Plus size={16} color="#3b82f6" />
+                    <Plus size={16} color={accentColor} />
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.setsContainer}>
-                  <View style={styles.setsHeader}>
-                    <Text style={styles.setHeaderText}>Set</Text>
-                    <Text style={styles.setHeaderText}>Weight</Text>
-                    <Text style={styles.setHeaderText}>Reps</Text>
-                    <Text style={styles.setHeaderText}>✓</Text>
+                <View style={dynamicStyles.setsContainer}>
+                  <View style={[dynamicStyles.setsHeader, { borderBottomColor: theme.border }]}>
+                    <Text style={[dynamicStyles.setHeaderText, { color: theme.textSecondary }]}>Set</Text>
+                    <Text style={[dynamicStyles.setHeaderText, { color: theme.textSecondary }]}>Weight</Text>
+                    <Text style={[dynamicStyles.setHeaderText, { color: theme.textSecondary }]}>Reps</Text>
+                    <Text style={[dynamicStyles.setHeaderText, { color: theme.textSecondary }]}>✓</Text>
                   </View>
 
                   {exercise.sets.map((set, setIndex) => (
-                    <View key={set.id} style={styles.setRow}>
-                      <Text style={styles.setNumber}>{setIndex + 1}</Text>
+                    <View key={set.id} style={dynamicStyles.setRow}>
+                      <Text style={[dynamicStyles.setNumber, { color: theme.textPrimary }]}>{setIndex + 1}</Text>
 
                       {editingSet?.exerciseId === exercise.id && editingSet?.setId === set.id ? (
                         <>
                           <TextInput
-                            style={styles.setInput}
+                            style={[dynamicStyles.setInput, { 
+                              borderColor: theme.border, 
+                              color: theme.textPrimary,
+                              backgroundColor: theme.cardBackground,
+                            }]}
                             value={editWeight}
                             onChangeText={setEditWeight}
                             keyboardType="numeric"
                             placeholder="0"
+                            placeholderTextColor={theme.textSecondary}
                           />
                           <TextInput
-                            style={styles.setInput}
+                            style={[dynamicStyles.setInput, { 
+                              borderColor: theme.border, 
+                              color: theme.textPrimary,
+                              backgroundColor: theme.cardBackground,
+                            }]}
                             value={editReps}
                             onChangeText={setEditReps}
                             keyboardType="numeric"
                             placeholder="0"
+                            placeholderTextColor={theme.textSecondary}
                           />
-                          <View style={styles.setEditActions}>
-                            <TouchableOpacity onPress={saveSetEdit} style={styles.saveButton}>
+                          <View style={dynamicStyles.setEditActions}>
+                            <TouchableOpacity onPress={saveSetEdit} style={dynamicStyles.saveButton}>
                               <Save size={16} color="#10b981" />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={cancelSetEdit} style={styles.cancelButton}>
+                            <TouchableOpacity onPress={cancelSetEdit} style={dynamicStyles.cancelButton}>
                               <X size={16} color="#ef4444" />
                             </TouchableOpacity>
                           </View>
@@ -377,21 +434,25 @@ export default function ExerciseScreen() {
                       ) : (
                         <>
                           <TouchableOpacity
-                            style={styles.setValueContainer}
+                            style={dynamicStyles.setValueContainer}
                             onPress={() => startEditingSet(exercise.id, set.id)}
                           >
-                            <Text style={styles.setValue}>{set.weight}</Text>
+                            <Text style={[dynamicStyles.setValue, { color: theme.textPrimary }]}>{set.weight}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
-                            style={styles.setValueContainer}
+                            style={dynamicStyles.setValueContainer}
                             onPress={() => startEditingSet(exercise.id, set.id)}
                           >
-                            <Text style={styles.setValue}>{set.reps}</Text>
+                            <Text style={[dynamicStyles.setValue, { color: theme.textPrimary }]}>{set.reps}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={[
-                              styles.checkButton,
-                              set.completed && styles.checkButtonCompleted
+                              dynamicStyles.checkButton,
+                              { 
+                                backgroundColor: theme.primarySoft,
+                                borderColor: theme.border,
+                              },
+                              set.completed && { backgroundColor: '#10b981', borderColor: '#10b981' }
                             ]}
                             onPress={() => completeSet(exercise.id, set.id)}
                           >
@@ -403,7 +464,7 @@ export default function ExerciseScreen() {
                       {exercise.sets.length > 1 && (
                         <TouchableOpacity
                           onPress={() => removeSet(exercise.id, set.id)}
-                          style={styles.removeSetButton}
+                          style={dynamicStyles.removeSetButton}
                         >
                           <Trash2 size={14} color="#ef4444" />
                         </TouchableOpacity>
@@ -412,8 +473,8 @@ export default function ExerciseScreen() {
                   ))}
                 </View>
 
-                <View style={styles.exerciseNotes}>
-                  <Text style={styles.restTimerText}>
+                <View style={[dynamicStyles.exerciseNotes, { borderTopColor: theme.border }]}>
+                  <Text style={[dynamicStyles.restTimerText, { color: theme.textSecondary }]}>
                     Rest: {Math.floor(exercise.restTimer / 60)}:{(exercise.restTimer % 60).toString().padStart(2, '0')}
                   </Text>
                 </View>
@@ -439,55 +500,60 @@ export default function ExerciseScreen() {
         animationType="slide"
         onRequestClose={() => setShowExerciseModal(false)}
       >
-        <View style={styles.mediaModalContainer}>
-          <View style={styles.mediaModalHeader}>
+        <View style={[dynamicStyles.mediaModalContainer, { backgroundColor: theme.background }]}>
+          <View style={[dynamicStyles.mediaModalHeader, { 
+            backgroundColor: theme.cardBackground,
+            borderBottomColor: theme.border,
+          }]}>
             <TouchableOpacity onPress={() => setShowExerciseModal(false)}>
-              <X size={24} color="#6b7280" />
+              <X size={24} color={theme.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.mediaTitle}>
+            <Text style={[dynamicStyles.mediaTitle, { color: theme.textPrimary }]}>
               {selectedExerciseId && exerciseById[selectedExerciseId]?.name}
             </Text>
             <View style={{ width: 24 }} />
           </View>
-          <ScrollView style={styles.mediaContent}>
+          <ScrollView style={dynamicStyles.mediaContent}>
             {selectedExerciseId && exerciseById[selectedExerciseId]?.mediaUrl ? (
-              <View style={styles.mediaPlayerWrapper}>
+              <View style={dynamicStyles.mediaPlayerWrapper}>
                 <WebView
                   source={{ uri: exerciseById[selectedExerciseId]!.mediaUrl! }}
-                  style={styles.mediaPlayer}
+                  style={dynamicStyles.mediaPlayer}
                   allowsInlineMediaPlayback
                   mediaPlaybackRequiresUserAction={false}
                 />
               </View>
             ) : null}
 
-            <View style={styles.mediaSection}>
-              <Text style={styles.mediaSectionTitle}>How to</Text>
-              <Text style={styles.mediaDescription}>
+            <View style={dynamicStyles.mediaSection}>
+              <Text style={[dynamicStyles.mediaSectionTitle, { color: theme.textPrimary }]}>How to</Text>
+              <Text style={[dynamicStyles.mediaDescription, { color: theme.textSecondary }]}>
                 {selectedExerciseId && exerciseById[selectedExerciseId]?.instructions.join('\n')}
               </Text>
             </View>
 
-            <View style={styles.mediaSectionRow}>
+            <View style={dynamicStyles.mediaSectionRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.mediaSectionTitle}>Primary</Text>
-                <Text style={styles.mediaChips}>
+                <Text style={[dynamicStyles.mediaSectionTitle, { color: theme.textPrimary }]}>Primary</Text>
+                <Text style={[dynamicStyles.mediaChips, { color: theme.textSecondary }]}>
                   {selectedExerciseId && exerciseById[selectedExerciseId]?.primaryMuscles.join(', ')}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.mediaSectionTitle}>Secondary</Text>
-                <Text style={styles.mediaChips}>
+                <Text style={[dynamicStyles.mediaSectionTitle, { color: theme.textPrimary }]}>Secondary</Text>
+                <Text style={[dynamicStyles.mediaChips, { color: theme.textSecondary }]}>
                   {selectedExerciseId && exerciseById[selectedExerciseId]?.secondaryMuscles.join(', ')}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.mediaSection}>
-              <Text style={styles.mediaSectionTitle}>Coaching Cues</Text>
-              {(selectedExerciseId && (exerciseById[selectedExerciseId]?.cues || []))?.map((cue, idx) => (
-                <Text key={idx} style={styles.mediaCue}>• {cue}</Text>
-              ))}
+            <View style={dynamicStyles.mediaSection}>
+              <Text style={[dynamicStyles.mediaSectionTitle, { color: theme.textPrimary }]}>Coaching Cues</Text>
+              {(selectedExerciseId && exerciseById[selectedExerciseId]?.cues 
+                ? exerciseById[selectedExerciseId]!.cues.map((cue: string, idx: number) => (
+                    <Text key={idx} style={[dynamicStyles.mediaCue, { color: theme.textSecondary }]}>• {cue}</Text>
+                  ))
+                : null)}
             </View>
           </ScrollView>
         </View>
@@ -499,31 +565,38 @@ export default function ExerciseScreen() {
         animationType="slide"
         onRequestClose={() => setShowLibrary(false)}
       >
-        <View style={styles.libraryContainer}>
-          <View style={styles.mediaModalHeader}>
+        <View style={[dynamicStyles.libraryContainer, { backgroundColor: theme.background }]}>
+          <View style={[dynamicStyles.mediaModalHeader, { 
+            backgroundColor: theme.cardBackground,
+            borderBottomColor: theme.border,
+          }]}>
             <TouchableOpacity onPress={() => setShowLibrary(false)}>
-              <X size={24} color="#6b7280" />
+              <X size={24} color={theme.textSecondary} />
             </TouchableOpacity>
-            <Text style={styles.mediaTitle}>Exercise Library</Text>
+            <Text style={[dynamicStyles.mediaTitle, { color: theme.textPrimary }]}>Exercise Library</Text>
             <View style={{ width: 24 }} />
           </View>
           <ScrollView>
             {Object.entries(groupedByCategory).map(([category, list]) => (
-              <View key={category} style={styles.librarySection}>
-                <Text style={styles.librarySectionTitle}>{category.toUpperCase()}</Text>
+              <View key={category} style={dynamicStyles.librarySection}>
+                <Text style={[dynamicStyles.librarySectionTitle, { color: theme.textPrimary }]}>{category.toUpperCase()}</Text>
                 {list.map((ex) => (
-                  <TouchableOpacity key={ex.id} style={styles.libraryItem} onPress={() => openExerciseDetails(ex.id)}>
-                    <View style={styles.libraryThumb}>
+                  <TouchableOpacity 
+                    key={ex.id} 
+                    style={[dynamicStyles.libraryItem, { borderBottomColor: theme.border }]} 
+                    onPress={() => openExerciseDetails(ex.id)}
+                  >
+                    <View style={[dynamicStyles.libraryThumb, { backgroundColor: theme.primarySoft }]}>
                       {/* Lightweight placeholder instead of autoplay video */}
-                      <Text style={styles.libraryThumbText}>{ex.name.split(' ').map(w => w[0]).join('').slice(0, 3)}</Text>
+                      <Text style={[dynamicStyles.libraryThumbText, { color: theme.textSecondary }]}>{ex.name.split(' ').map(w => w[0]).join('').slice(0, 3)}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.libraryItemName}>{ex.name}</Text>
-                      <Text style={styles.libraryItemSub} numberOfLines={1}>
+                      <Text style={[dynamicStyles.libraryItemName, { color: theme.textPrimary }]}>{ex.name}</Text>
+                      <Text style={[dynamicStyles.libraryItemSub, { color: theme.textSecondary }]} numberOfLines={1}>
                         {ex.primaryMuscles.join(', ')}
                       </Text>
                     </View>
-                    <Info size={18} color="#6b7280" />
+                    <Info size={18} color={theme.textSecondary} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -537,3 +610,511 @@ export default function ExerciseScreen() {
     </ScrollView>
   );
 }
+
+// ============================================================================
+// DYNAMIC STYLES (Theme-aware)
+// ============================================================================
+
+const createStyles = (theme: any, accentColor: string, width: number, height: number) => StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 30,
+  },
+  headerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 10,
+  },
+  title: {
+    fontSize: width * 0.07,
+    marginBottom: 4,
+    fontFamily: 'Bold',
+  },
+  subtitle: {
+    fontSize: width * 0.035,
+    fontWeight: '500',
+    lineHeight: width * 0.05,
+  },
+  imageContainer: {
+    width: width * 0.45,
+    height: height * 0.18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  summaryCard: {
+    margin: 20,
+    padding: 20,
+    borderRadius: 20,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  section: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  activeWorkoutButton: {
+    borderRadius: 16,
+    padding: 20,
+    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  activeWorkoutContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  activeWorkoutInfo: {
+    flex: 1,
+  },
+  activeWorkoutTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  activeWorkoutSubtitle: {
+    fontSize: 14,
+  },
+  pulseIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  startWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+  },
+  startWorkoutText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  secondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  templateCard: {
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  templateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  templateName: {
+    fontSize: 18,
+    fontWeight: '700',
+    flex: 1,
+  },
+  difficultyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  difficultyBeginner: {
+    backgroundColor: '#dcfce7',
+  },
+  difficultyIntermediate: {
+    backgroundColor: '#fef3c7',
+  },
+  difficultyAdvanced: {
+    backgroundColor: '#fecaca',
+  },
+  difficultyText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  templateDescription: {
+    fontSize: 14,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  templateStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  templateStat: {
+    fontSize: 12,
+  },
+  sessionCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  sessionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  sessionDate: {
+    fontSize: 12,
+  },
+  sessionStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  sessionStat: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    margin: 20,
+    borderRadius: 20,
+    padding: 24,
+    maxHeight: '80%',
+    width: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  templateList: {
+    maxHeight: 400,
+  },
+  modalTemplateCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  modalTemplateName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  modalTemplateDescription: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  modalTemplateStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  modalTemplateStat: {
+    fontSize: 12,
+  },
+  workoutContainer: {
+    flex: 1,
+  },
+  workoutHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+  },
+  workoutTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+  },
+  endWorkoutButton: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  endWorkoutText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  workoutContent: {
+    flex: 1,
+    padding: 20,
+  },
+  exerciseContainer: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  exerciseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  exerciseName: {
+    fontSize: 18,
+    fontWeight: '700',
+    flex: 1,
+  },
+  infoButton: {
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  addSetButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  setsContainer: {
+    marginBottom: 12,
+  },
+  setsHeader: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    marginBottom: 8,
+  },
+  setHeaderText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    minHeight: 48,
+  },
+  setNumber: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  setValueContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  setValue: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  setInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    textAlign: 'center',
+    marginHorizontal: 4,
+  },
+  setEditActions: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  saveButton: {
+    padding: 4,
+  },
+  cancelButton: {
+    padding: 4,
+  },
+  checkButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  removeSetButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  exerciseNotes: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+  },
+  restTimerText: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  mediaModalContainer: {
+    flex: 1,
+  },
+  mediaModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  mediaTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  mediaContent: {
+    flex: 1,
+  },
+  mediaPlayerWrapper: {
+    height: 220,
+    backgroundColor: '#000',
+  },
+  mediaPlayer: {
+    flex: 1,
+  },
+  mediaSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  mediaSectionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  mediaSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  mediaDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  mediaChips: {
+    fontSize: 13,
+  },
+  mediaCue: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  libraryContainer: {
+    flex: 1,
+  },
+  librarySection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  librarySectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  libraryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  libraryThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  libraryThumbText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  libraryItemName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  libraryItemSub: {
+    fontSize: 12,
+  },
+});

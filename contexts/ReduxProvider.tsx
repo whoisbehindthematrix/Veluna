@@ -3,14 +3,9 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Provider, useDispatch } from 'react-redux';
 import { AppDispatch } from '@/src/store';
 import { store } from '@/src/store';
-import { supabase } from '@/lib/supabase';
-import { setUser, syncUser } from '@/src/store/slices/authSlice';
+import { restoreSession, syncUser } from '@/src/store/slices/authSlice';
 
-type SupabaseListenerProps = {
-  onReady: () => void;
-};
-
-const SupabaseListener = ({ onReady }: SupabaseListenerProps) => {
+const AuthInitializer = ({ onReady }: { onReady: () => void }) => {
   const dispatch = useDispatch<AppDispatch>();
   const readyNotified = useRef(false);
 
@@ -24,57 +19,34 @@ const SupabaseListener = ({ onReady }: SupabaseListenerProps) => {
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      try {
+        // Restore session from stored tokens
+        const result = await dispatch(restoreSession()).unwrap();
+        
         if (!isMounted) return;
 
-        dispatch(
-          setUser({
-            user: session?.user
-              ? { id: session.user.id, email: session.user.email ?? undefined }
-              : null,
-            accessToken: session?.access_token ?? null,
-          })
-        );
-      })
-      .catch((error) => {
-        console.warn('Supabase getSession failed:', error);
-      })
-      .finally(() => {
-        if (isMounted) {
-          notifyReady();
-        }
-      });
-
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
-
-        dispatch(
-          setUser({
-            user: session?.user
-              ? { id: session.user.id, email: session.user.email ?? undefined }
-              : null,
-            accessToken: session?.access_token ?? null,
-          })
-        );
-
-        if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        // If user is authenticated, sync their data
+        if (result?.user) {
           try {
             await dispatch(syncUser()).unwrap();
           } catch (error) {
-            console.error('Failed to sync user:', error);
+            console.warn('Failed to sync user on init:', error);
           }
         }
-
-        notifyReady();
+      } catch (error) {
+        console.warn('Failed to restore session:', error);
+      } finally {
+        if (isMounted) {
+          notifyReady();
+        }
       }
-    );
+    };
+
+    initializeAuth();
 
     return () => {
       isMounted = false;
-      subscription?.subscription.unsubscribe();
     };
   }, [dispatch]);
 
@@ -86,7 +58,7 @@ export const ReduxProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <Provider store={store}>
-      <SupabaseListener onReady={() => setAuthReady(true)} />
+      <AuthInitializer onReady={() => setAuthReady(true)} />
       {authReady ? (
         children
       ) : (

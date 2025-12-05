@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { aiService } from '@/services/aiService';
 import { Brain, TrendingUp, Target, Lightbulb } from 'lucide-react-native';
 import { useCycleStore } from '@/hooks/useCycleStore';
+import { useTheme } from '@/src/context/ThemeContext';
 
 interface AIInsightsProps {
   visible: boolean;
@@ -11,6 +12,9 @@ interface AIInsightsProps {
 
 export function AIInsights({ visible, onClose }: AIInsightsProps) {
   const { cycle } = useCycleStore();
+  const { theme, accentColor } = useTheme();
+  
+  const dynamicStyles = useMemo(() => createStyles(theme, accentColor), [theme, accentColor]);
 
   const [insights, setInsights] = useState<{
     insights: string[];
@@ -84,42 +88,51 @@ export function AIInsights({ visible, onClose }: AIInsightsProps) {
   if (!visible) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[dynamicStyles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Brain size={24} color="#8b5cf6" />
-          <Text style={styles.title}>AI Insights</Text>
+      <View style={[dynamicStyles.header, { 
+        borderBottomColor: theme.border,
+        backgroundColor: theme.cardBackground,
+      }]}>
+        <View style={dynamicStyles.headerLeft}>
+          <Brain size={24} color={accentColor} />
+          <Text style={[dynamicStyles.title, { color: theme.textPrimary }]}>AI Insights</Text>
         </View>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Text style={styles.closeButtonText}>✕</Text>
+        <TouchableOpacity onPress={onClose} style={dynamicStyles.closeButton}>
+          <Text style={[dynamicStyles.closeButtonText, { color: theme.textSecondary }]}>✕</Text>
         </TouchableOpacity>
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[dynamicStyles.content, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Analyzing your data...</Text>
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={[dynamicStyles.loadingText, { color: theme.textSecondary }]}>Analyzing your data...</Text>
           </View>
         ) : (
           <>
             {/* Nutrition Score */}
             {insights && (
-              <View style={styles.scoreCard}>
-                <View style={styles.scoreHeader}>
-                  <Target size={20} color="#10b981" />
-                  <Text style={styles.scoreTitle}>Nutrition Score</Text>
+              <View style={[dynamicStyles.scoreCard, { 
+                backgroundColor: `${accentColor}15`,
+                borderLeftColor: accentColor,
+              }]}>
+                <View style={dynamicStyles.scoreHeader}>
+                  <Target size={20} color={accentColor} />
+                  <Text style={[dynamicStyles.scoreTitle, { color: theme.textPrimary }]}>Nutrition Score</Text>
                 </View>
-                <View style={styles.scoreDisplay}>
-                  <Text style={styles.scoreNumber}>{insights.nutritionScore ?? 0}</Text>
-                  <Text style={styles.scoreOutOf}>/100</Text>
+                <View style={dynamicStyles.scoreDisplay}>
+                  <Text style={[dynamicStyles.scoreNumber, { color: accentColor }]}>{insights.nutritionScore ?? 0}</Text>
+                  <Text style={[dynamicStyles.scoreOutOf, { color: theme.textSecondary }]}>/100</Text>
                 </View>
-                <View style={styles.scoreBar}>
+                <View style={[dynamicStyles.scoreBar, { backgroundColor: `${accentColor}30` }]}>
                   <View
                     style={[
-                      styles.scoreProgress,
-                      { width: `${Math.min(insights.nutritionScore || 0, 100)}%` },
+                      dynamicStyles.scoreProgress,
+                      { 
+                        backgroundColor: accentColor,
+                        width: `${Math.min(insights.nutritionScore || 0, 100)}%` 
+                      },
                     ]}
                   />
                 </View>
@@ -128,13 +141,16 @@ export function AIInsights({ visible, onClose }: AIInsightsProps) {
 
             {/* Personal Insights */}
             {insights?.insights?.length ? (
-              <View style={styles.insightsCard}>
-                <View style={styles.cardHeader}>
-                  <TrendingUp size={20} color="#3b82f6" />
-                  <Text style={styles.cardTitle}>Your Patterns</Text>
+              <View style={[dynamicStyles.insightsCard, { 
+                backgroundColor: `${accentColor}15`,
+                borderLeftColor: accentColor,
+              }]}>
+                <View style={dynamicStyles.cardHeader}>
+                  <TrendingUp size={20} color={accentColor} />
+                  <Text style={[dynamicStyles.cardTitle, { color: theme.textPrimary }]}>Your Patterns</Text>
                 </View>
                 {insights.insights.map((item, i) => (
-                  <Text key={i} style={styles.insightText}>
+                  <Text key={i} style={[dynamicStyles.insightText, { color: theme.textSecondary }]}>
                     • {item}
                   </Text>
                 ))}
@@ -143,13 +159,16 @@ export function AIInsights({ visible, onClose }: AIInsightsProps) {
 
             {/* AI Suggestions */}
             {insights?.suggestions?.length ? (
-              <View style={styles.suggestionsCard}>
-                <View style={styles.cardHeader}>
-                  <Lightbulb size={20} color="#f59e0b" />
-                  <Text style={styles.cardTitle}>Smart Suggestions</Text>
+              <View style={[dynamicStyles.suggestionsCard, { 
+                backgroundColor: `${accentColor}15`,
+                borderLeftColor: accentColor,
+              }]}>
+                <View style={dynamicStyles.cardHeader}>
+                  <Lightbulb size={20} color={accentColor} />
+                  <Text style={[dynamicStyles.cardTitle, { color: theme.textPrimary }]}>Smart Suggestions</Text>
                 </View>
                 {insights.suggestions.map((item, i) => (
-                  <Text key={i} style={styles.suggestionText}>
+                  <Text key={i} style={[dynamicStyles.suggestionText, { color: theme.textSecondary }]}>
                     💡 {item}
                   </Text>
                 ))}
@@ -158,35 +177,38 @@ export function AIInsights({ visible, onClose }: AIInsightsProps) {
 
             {/* Phase Recommendations */}
             {recommendations && (
-              <View style={styles.recommendationsCard}>
-                <View style={styles.cardHeader}>
-                  <Brain size={20} color="#ec4899" />
-                  <Text style={styles.cardTitle}>
+              <View style={[dynamicStyles.recommendationsCard, { 
+                backgroundColor: `${accentColor}15`,
+                borderLeftColor: accentColor,
+              }]}>
+                <View style={dynamicStyles.cardHeader}>
+                  <Brain size={20} color={accentColor} />
+                  <Text style={[dynamicStyles.cardTitle, { color: theme.textPrimary }]}>
                     {recommendations.phase || cycle.currentPhase.name} Phase Guidance
                   </Text>
                 </View>
 
                 {recommendations.macroBalance && (
-                  <View style={styles.macroBalance}>
-                    <Text style={styles.macroTitle}>Optimal Macro Balance:</Text>
-                    <View style={styles.macroGrid}>
-                      <View style={styles.macroItem}>
-                        <Text style={styles.macroValue}>
+                  <View style={dynamicStyles.macroBalance}>
+                    <Text style={[dynamicStyles.macroTitle, { color: theme.textPrimary }]}>Optimal Macro Balance:</Text>
+                    <View style={[dynamicStyles.macroGrid, { backgroundColor: theme.cardBackground }]}>
+                      <View style={dynamicStyles.macroItem}>
+                        <Text style={[dynamicStyles.macroValue, { color: accentColor }]}>
                           {recommendations.macroBalance.protein ?? 0}%
                         </Text>
-                        <Text style={styles.macroLabel}>Protein</Text>
+                        <Text style={[dynamicStyles.macroLabel, { color: theme.textSecondary }]}>Protein</Text>
                       </View>
-                      <View style={styles.macroItem}>
-                        <Text style={styles.macroValue}>
+                      <View style={dynamicStyles.macroItem}>
+                        <Text style={[dynamicStyles.macroValue, { color: accentColor }]}>
                           {recommendations.macroBalance.carbs ?? 0}%
                         </Text>
-                        <Text style={styles.macroLabel}>Carbs</Text>
+                        <Text style={[dynamicStyles.macroLabel, { color: theme.textSecondary }]}>Carbs</Text>
                       </View>
-                      <View style={styles.macroItem}>
-                        <Text style={styles.macroValue}>
+                      <View style={dynamicStyles.macroItem}>
+                        <Text style={[dynamicStyles.macroValue, { color: accentColor }]}>
                           {recommendations.macroBalance.fat ?? 0}%
                         </Text>
-                        <Text style={styles.macroLabel}>Fat</Text>
+                        <Text style={[dynamicStyles.macroLabel, { color: theme.textSecondary }]}>Fat</Text>
                       </View>
                     </View>
                   </View>
@@ -194,12 +216,12 @@ export function AIInsights({ visible, onClose }: AIInsightsProps) {
 
                 {recommendations.recommendations?.length ? (
                   recommendations.recommendations.map((rec, i) => (
-                    <Text key={i} style={styles.recommendationText}>
+                    <Text key={i} style={[dynamicStyles.recommendationText, { color: theme.textSecondary }]}>
                       🎯 {rec}
                     </Text>
                   ))
                 ) : (
-                  <Text style={styles.recommendationText}>
+                  <Text style={[dynamicStyles.recommendationText, { color: theme.textSecondary }]}>
                     No personalized guidance available right now.
                   </Text>
                 )}
@@ -212,90 +234,153 @@ export function AIInsights({ visible, onClose }: AIInsightsProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+// ============================================================================
+// DYNAMIC STYLES (Theme-aware)
+// ============================================================================
+
+const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
+  container: { 
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 20, fontWeight: '700', color: '#1f2937' },
-  closeButton: { padding: 8 },
-  closeButtonText: { fontSize: 18, color: '#6b7280' },
-  content: { flex: 1, padding: 20 },
-  loadingContainer: { alignItems: 'center', paddingVertical: 40 },
-  loadingText: { fontSize: 16, color: '#6b7280' },
+  headerLeft: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8 
+  },
+  title: { 
+    fontSize: 20, 
+    fontWeight: '700',
+  },
+  closeButton: { 
+    padding: 8 
+  },
+  closeButtonText: { 
+    fontSize: 18,
+  },
+  content: { 
+    flex: 1, 
+    padding: 20 
+  },
+  loadingContainer: { 
+    alignItems: 'center', 
+    paddingVertical: 40 
+  },
+  loadingText: { 
+    fontSize: 16,
+  },
 
   scoreCard: {
-    backgroundColor: '#f0fdf4',
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#10b981',
   },
-  scoreHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  scoreTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937' },
-  scoreDisplay: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 },
-  scoreNumber: { fontSize: 36, fontWeight: '700', color: '#10b981' },
-  scoreOutOf: { fontSize: 16, color: '#6b7280', marginLeft: 4 },
-  scoreBar: { height: 8, backgroundColor: '#dcfce7', borderRadius: 4 },
-  scoreProgress: { height: '100%', backgroundColor: '#10b981', borderRadius: 4 },
+  scoreHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    marginBottom: 12 
+  },
+  scoreTitle: { 
+    fontSize: 16, 
+    fontWeight: '600',
+  },
+  scoreDisplay: { 
+    flexDirection: 'row', 
+    alignItems: 'baseline', 
+    marginBottom: 12 
+  },
+  scoreNumber: { 
+    fontSize: 36, 
+    fontWeight: '700',
+  },
+  scoreOutOf: { 
+    fontSize: 16, 
+    marginLeft: 4 
+  },
+  scoreBar: { 
+    height: 8, 
+    borderRadius: 4 
+  },
+  scoreProgress: { 
+    height: '100%', 
+    borderRadius: 4 
+  },
 
   insightsCard: {
-    backgroundColor: '#eff6ff',
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937' },
-  insightText: { fontSize: 14, color: '#1e40af', lineHeight: 20, marginBottom: 8 },
+  cardHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    marginBottom: 12 
+  },
+  cardTitle: { 
+    fontSize: 16, 
+    fontWeight: '600',
+  },
+  insightText: { 
+    fontSize: 14, 
+    lineHeight: 20, 
+    marginBottom: 8 
+  },
 
   suggestionsCard: {
-    backgroundColor: '#fffbeb',
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
   },
-  suggestionText: { fontSize: 14, color: '#92400e', lineHeight: 20, marginBottom: 8 },
+  suggestionText: { 
+    fontSize: 14, 
+    lineHeight: 20, 
+    marginBottom: 8 
+  },
 
   recommendationsCard: {
-    backgroundColor: '#fdf2f8',
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#ec4899',
   },
-  macroBalance: { marginBottom: 16 },
+  macroBalance: { 
+    marginBottom: 16 
+  },
   macroTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1f2937',
     marginBottom: 8,
   },
   macroGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.5)',
     padding: 12,
     borderRadius: 8,
   },
-  macroItem: { alignItems: 'center' },
-  macroValue: { fontSize: 16, fontWeight: '700', color: '#ec4899' },
-  macroLabel: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  macroItem: { 
+    alignItems: 'center' 
+  },
+  macroValue: { 
+    fontSize: 16, 
+    fontWeight: '700',
+  },
+  macroLabel: { 
+    fontSize: 12, 
+    marginTop: 2 
+  },
   recommendationText: {
     fontSize: 14,
-    color: '#be185d',
     lineHeight: 20,
     marginBottom: 8,
   },

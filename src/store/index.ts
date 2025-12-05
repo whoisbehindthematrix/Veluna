@@ -4,6 +4,7 @@ import { combineReducers } from 'redux';
 import { authReducer } from './slices/authSlice';
 import cycleReducer from './slices/cycleSlice';
 import userProfileReducer from './slices/userProfileSlice';
+import onboardingReducer from './slices/onboardingSlice';
 import {
   persistStore,
   persistReducer,
@@ -20,6 +21,7 @@ const rootReducer = combineReducers({
   auth: authReducer,
   cycle: cycleReducer,
   userProfile: userProfileReducer,
+  onboarding: onboardingReducer,
   // add other reducers here
 });
 

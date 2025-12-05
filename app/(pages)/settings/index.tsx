@@ -19,12 +19,14 @@ import {
 	CloudUpload,
 	Activity,
 	Cpu,
+	ClipboardList,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import AppText from '@/components/core-components/AppText';
-import { lightTheme as theme } from '@/styles/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function SettingsScreen() {
+	const { theme, accentColor, themeName } = useTheme();
 	const router = useRouter();
 	const [notificationPrefs, setNotificationPrefs] = useState({
 		periodPredictions: true,
@@ -36,6 +38,7 @@ export default function SettingsScreen() {
 		setNotificationPrefs((prev) => ({ ...prev, [key]: value }));
 	};
 
+	const styles = createStyles(theme, accentColor);
 	const SectionHeader = ({ title }: { title: string }) => (
 		<AppText style={styles.sectionHeader}>{title}</AppText>
 	);
@@ -44,7 +47,7 @@ export default function SettingsScreen() {
 		() => [
 			{
 				id: 'cycleDefaults',
-				icon: <Calendar size={20} color={theme.primary} />,
+				icon: <Calendar size={20} color={accentColor} />,
 				label: 'Cycle Length & Period Defaults',
 				description: 'Adjust average cycle length and period duration for predictions.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
@@ -52,7 +55,7 @@ export default function SettingsScreen() {
 			},
 			{
 				id: 'symptoms',
-				icon: <Activity size={20} color={theme.primary} />,
+				icon: <Activity size={20} color={accentColor} />,
 				label: 'Symptoms & Daily Log',
 				description: 'Customize symptom tracking prompts and reminders.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
@@ -60,29 +63,45 @@ export default function SettingsScreen() {
 			},
 			{
 				id: 'phaseRecommendations',
-				icon: <Brain size={20} color={theme.primary} />,
+				icon: <Brain size={20} color={accentColor} />,
 				label: 'Phase Recommendations',
 				description: 'Select the insights you want to see across phases.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
 				disabled: true,
 			},
 		],
-		[router]
+		[router, accentColor, theme.textSecondary]
 	);
 
 	const accountRows = useMemo(
 		() => [
 			{
-				id: 'profileSecurity',
-				icon: <UserCog size={20} color={theme.primary} />,
-				label: 'Profile & Security',
-				description: 'Update email, password, and secure sign-in.',
+				id: 'profileSettings',
+				icon: <UserCog size={20} color={accentColor} />,
+				label: 'Personal Information',
+				description: 'Update your name, date of birth, gender, and timezone.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
 				onPress: () => router.push('/(pages)/settings/profile'),
 			},
 			{
+				id: 'healthWellness',
+				icon: <Activity size={20} color={accentColor} />,
+				label: 'Health & Wellness',
+				description: 'Configure activity level, calories, weight, and wellness goals.',
+				action: <ChevronRight size={20} color={theme.textSecondary} />,
+				onPress: () => router.push('/(pages)/settings/health-wellness'),
+			},
+			{
+				id: 'onboarding',
+				icon: <ClipboardList size={20} color={accentColor} />,
+				label: 'Onboarding Survey',
+				description: 'View and edit your onboarding survey answers.',
+				action: <ChevronRight size={20} color={theme.textSecondary} />,
+				onPress: () => router.push('/(pages)/settings/onboarding'),
+			},
+			{
 				id: 'dataPrivacy',
-				icon: <ShieldCheck size={20} color={theme.primary} />,
+				icon: <ShieldCheck size={20} color={accentColor} />,
 				label: 'Data Privacy',
 				description: 'Manage analytics sharing and data export.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
@@ -90,21 +109,21 @@ export default function SettingsScreen() {
 			},
 			{
 				id: 'backupRestore',
-				icon: <CloudUpload size={20} color={theme.primary} />,
+				icon: <CloudUpload size={20} color={accentColor} />,
 				label: 'Backup & Restore',
 				description: 'Sync with cloud or keep data local only.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
 				disabled: true,
 			},
 		],
-		[router]
+		[router, accentColor, theme.textSecondary]
 	);
 
 	const advancedRows = useMemo(
 		() => [
 			{
 				id: 'hormoneEngine',
-				icon: <Cpu size={20} color={theme.primary} />,
+				icon: <Cpu size={20} color={accentColor} />,
 				label: 'Hormone Engine',
 				description: 'View prediction inputs and confidence levels.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
@@ -112,7 +131,7 @@ export default function SettingsScreen() {
 			},
 			{
 				id: 'aiInsights',
-				icon: <Brain size={20} color={theme.primary} />,
+				icon: <Brain size={20} color={accentColor} />,
 				label: 'AI Insights',
 				description: 'Configure nutrition AI suggestions and feedback.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
@@ -120,7 +139,7 @@ export default function SettingsScreen() {
 			},
 			{
 				id: 'diagnostics',
-				icon: <Settings size={20} color={theme.primary} />,
+				icon: <Settings size={20} color={accentColor} />,
 				label: 'App Diagnostics',
 				description: 'Version, logs, and support tools.',
 				action: <ChevronRight size={20} color={theme.textSecondary} />,
@@ -134,10 +153,10 @@ export default function SettingsScreen() {
 		() => [
 			{
 				id: 'exportData',
-				icon: <Database size={20} color={theme.primary} />,
+				icon: <Database size={20} color={accentColor} />,
 				label: 'Export Cycle Data',
 				description: 'Download your full history securely.',
-				action: <Database size={20} color={theme.accent} />,
+				action: <Database size={20} color={accentColor} />,
 				disabled: true,
 			},
 			{
@@ -153,14 +172,17 @@ export default function SettingsScreen() {
 	);
 
 	return (
-		<ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+		<ScrollView
+			style={styles.container}
+			showsVerticalScrollIndicator={false}
+		>
 			{/* Header */}
 			<LinearGradient colors={theme.headerGradient} style={styles.header}>
 				<View style={styles.headerTopRow}>
 					<Text style={styles.headerTitle}>Settings</Text>
 					<TouchableOpacity style={styles.helpButton}>
-						<Info size={20} color={theme.primary} />
-						<AppText style={styles.helpButtonText}>Help</AppText>
+						<Info size={20} color={accentColor} />
+						<AppText style={[styles.helpButtonText, { color: accentColor }]}>Help</AppText>
 					</TouchableOpacity>
 				</View>
 				<Text style={styles.headerSubtitle}>
@@ -186,42 +208,42 @@ export default function SettingsScreen() {
 			{/* Notifications */}
 			<SectionHeader title="Notifications & Reminders" />
 			<View style={styles.section}>
-				<SettingsRow
-					icon={<Bell size={20} color={theme.primary} />}
+					<SettingsRow
+					icon={<Bell size={20} color={accentColor} />}
 					label="Period Predictions"
 					description="Get notified before your next predicted period."
 					action={
 						<Switch
 							value={notificationPrefs.periodPredictions}
 							onValueChange={(value) => toggleNotification('periodPredictions', value)}
-							trackColor={{ false: '#e5e7eb', true: theme.primary }}
-							thumbColor={theme.primary}
+							trackColor={{ false: '#e5e7eb', true: accentColor }}
+							thumbColor={accentColor}
 						/>
 					}
 				/>
-				<SettingsRow
-					icon={<Dumbbell size={20} color={theme.primary} />}
+					<SettingsRow
+					icon={<Dumbbell size={20} color={accentColor} />}
 					label="Workout Reminders"
 					description="Receive phase-based workout nudges."
 					action={
 						<Switch
 							value={notificationPrefs.workoutReminders}
 							onValueChange={(value) => toggleNotification('workoutReminders', value)}
-							trackColor={{ false: '#e5e7eb', true: theme.primary }}
-							thumbColor={theme.primary}
+							trackColor={{ false: '#e5e7eb', true: accentColor }}
+							thumbColor={accentColor}
 						/>
 					}
 				/>
-				<SettingsRow
-					icon={<Apple size={20} color={theme.primary} />}
+					<SettingsRow
+					icon={<Apple size={20} color={accentColor} />}
 					label="Nutrition Tips"
 					description="Smart meal suggestions tailored to your cycle phase."
 					action={
 						<Switch
 							value={notificationPrefs.nutritionTips}
 							onValueChange={(value) => toggleNotification('nutritionTips', value)}
-							trackColor={{ false: '#e5e7eb', true: theme.primary }}
-							thumbColor={theme.primary}
+							trackColor={{ false: '#e5e7eb', true: accentColor }}
+							thumbColor={accentColor}
 						/>
 					}
 				/>
@@ -230,35 +252,18 @@ export default function SettingsScreen() {
 			{/* Appearance */}
 			<SectionHeader title="Appearance" />
 			<View style={styles.section}>
-				<SettingsRow
-					icon={<MoonStar size={20} color={theme.primary} />}
-					label="Theme"
-					description="Switch between light and dark appearance."
-					action={
-						<View style={styles.themeBadge}>
-							<MoonStar size={16} color={theme.primary} />
-							<Text style={styles.themeBadgeText}>Light (Auto soon)</Text>
-						</View>
-					}
-				/>
-				<SettingsRow
-					icon={<Palette size={20} color={theme.primary} />}
-					label="Accent Color"
-					description="Personalize charts and highlights."
+					<SettingsRow
+					icon={<MoonStar size={20} color={accentColor} />}
+					label="Appearance"
+					description="Change light/dark mode and accent color."
 					action={<ChevronRight size={20} color={theme.textSecondary} />}
+					onPress={() => router.push('/(pages)/settings/appearance')}
 				/>
 			</View>
 
 			
 
-			{/* Advanced */}
-			<SectionHeader title="Advanced" />
-			<View style={styles.section}>
-				{advancedRows.map(({ id, ...row }) => (
-					<SettingsRow key={id} {...row} />
-				))}
-			</View>
-
+		
 			{/* Data & Legal */}
 			<SectionHeader title="Data & Legal" />
 			<View style={styles.section}>
@@ -291,8 +296,10 @@ export function SettingsRow({
 	onPress?: () => void;
 	disabled?: boolean;
   }) {
+	const { theme, accentColor } = useTheme();
 	const [scale] = useState(new Animated.Value(1));
 	const isInteractive = Boolean(onPress) && !disabled;
+	const rowStyles = createRowStyles(theme, accentColor);
   
 	const handlePressIn = () => {
 	  if (!isInteractive) return;
@@ -318,31 +325,31 @@ export function SettingsRow({
 		onPressIn={handlePressIn}
 		onPressOut={handlePressOut}
 		android_ripple={
-			isInteractive ? { color: theme.primarySoft, borderless: false } : undefined
+			isInteractive ? { color: theme.primarySoft || `${accentColor}20`, borderless: false } : undefined
 		}
 		style={({ pressed }) => [{ opacity: pressed && isInteractive ? 0.95 : 1 }]}
 		disabled={!isInteractive}
 	  >
 		<Animated.View
 			style={[
-				styles.settingsRow,
+				rowStyles.settingsRow,
 				{ transform: [{ scale }], opacity: disabled ? 0.5 : 1 },
 			]}
 		>
-		  {icon && <View style={styles.settingsIcon}>{icon}</View>}
-		  <View style={styles.settingsRowText}>
-			<Text style={styles.settingsRowLabel}>{label}</Text>
-			<Text style={styles.settingsRowDescription}>{description}</Text>
+		  {icon && <View style={rowStyles.settingsIcon}>{icon}</View>}
+		  <View style={rowStyles.settingsRowText}>
+			<Text style={rowStyles.settingsRowLabel}>{label}</Text>
+			<Text style={rowStyles.settingsRowDescription}>{description}</Text>
 		  </View>
-		  <View style={styles.settingsRowAction}>{action}</View>
+		  <View style={rowStyles.settingsRowAction}>{action}</View>
 		</Animated.View>
 	  </Pressable>
 	);
-  }
-/* --- Styles --- */
-const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: theme.background },
+}
 
+/* --- Styles --- */
+const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
+	container: { flex: 1, backgroundColor: theme.background },
 	header: {
 		paddingTop: 60,
 		paddingHorizontal: 24,
@@ -351,7 +358,7 @@ const styles = StyleSheet.create({
 		borderBottomRightRadius: 32,
 	},
 	headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-	headerTitle: { fontSize: 32, fontWeight: '700', color: theme.primary, letterSpacing: -0.5 },
+	headerTitle: { fontSize: 32, fontWeight: '700', color: accentColor, letterSpacing: -0.5 },
 	headerSubtitle: { fontSize: 15, color: theme.textSecondary, lineHeight: 22 },
 	helpButton: {
 		flexDirection: 'row',
@@ -360,10 +367,9 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 14,
 		paddingVertical: 8,
 		borderRadius: 12,
-		backgroundColor: theme.primarySoft,
+		backgroundColor: `${accentColor}20`,
 	},
-	helpButtonText: { color: theme.primary, fontWeight: '600', fontSize: 13 },
-
+	helpButtonText: { color: accentColor, fontWeight: '600', fontSize: 13 },
 	sectionHeader: {
 		fontSize: 14,
 		fontWeight: '600',
@@ -372,40 +378,20 @@ const styles = StyleSheet.create({
 		marginTop: 28,
 		paddingHorizontal: 24,
 	},
-
 	section: {
 		marginHorizontal: 20,
 		backgroundColor: theme.cardBackground,
 		borderRadius: 20,
 		paddingHorizontal: 20,
 		paddingVertical: 16,
-		shadowColor: theme.shadow,
+		shadowColor: accentColor,
 		shadowOffset: { width: 0, height: 10 },
 		shadowOpacity: 0.05,
 		shadowRadius: 20,
 		elevation: 3,
 		borderWidth: 1,
-		borderColor: theme.border,
+		borderColor: accentColor,
 	},
-
-	settingsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
-	settingsIcon: { backgroundColor: theme.primarySoft, padding: 10, borderRadius: 10 },
-	settingsRowText: { flex: 1, gap: 4 },
-	settingsRowLabel: { fontSize: 14, fontWeight: '600', color: theme.textPrimary },
-	settingsRowDescription: { fontSize: 12, color: theme.textSecondary, lineHeight: 20 },
-	settingsRowAction: { marginLeft: 12, minWidth: 28, alignItems: 'flex-end' },
-
-	themeBadge: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 6,
-		paddingHorizontal: 12,
-		paddingVertical: 6,
-		borderRadius: 12,
-		backgroundColor: theme.primarySoft,
-	},
-	themeBadgeText: { color: theme.primary, fontWeight: '600', fontSize: 12 },
-
 	footerNote: {
 		marginHorizontal: 24,
 		marginTop: 24,
@@ -413,4 +399,13 @@ const styles = StyleSheet.create({
 		color: theme.textSecondary,
 		lineHeight: 20,
 	},
+});
+
+const createRowStyles = (theme: any, accentColor: string) => StyleSheet.create({
+	settingsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 12 },
+	settingsIcon: { backgroundColor: `${accentColor}20`, padding: 10, borderRadius: 10 },
+	settingsRowText: { flex: 1, gap: 4 },
+	settingsRowLabel: { fontSize: 14, fontWeight: '600', color: theme.textPrimary },
+	settingsRowDescription: { fontSize: 12, color: theme.textSecondary, lineHeight: 20 },
+	settingsRowAction: { marginLeft: 12, minWidth: 28, alignItems: 'flex-end' },
 });

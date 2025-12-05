@@ -1,12 +1,27 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Image } from 'react-native';
-import { Droplets, Plus, X, Check } from 'lucide-react-native';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/src/store';
-import { addEntry, calculatePredictions, CycleEntry, deleteEntry, updateEntry } from '@/src/store/slices/cycleSlice';
+import { 
+  addEntry, 
+  calculatePredictions, 
+  CycleEntry, 
+  deleteEntry, 
+  updateEntry,
+  addQuickNote,
+  updateQuickNote,
+  deleteQuickNote,
+  QuickNote,
+} from '@/src/store/slices/cycleSlice';
 import { phaseRecommendations } from '@/data/phaseRecommendation';
 import AppText from '@/components/core-components/AppText';
+import QuickNoteModal from '@/components/core-components/QuickNoteModal';
+import SymptomTrackerModal, { type SymptomState } from '@/components/core-components/SymptomTrackerModal';
+import TodaySummaryCard from '@/components/core-components/TodaySummaryCard';
+import DateActionModal from '@/components/core-components/DateActionModal';
+import { quickNoteService } from '@/services/quickNoteService';
+import { useTheme } from '@/src/context/ThemeContext';
 
 type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
 
@@ -60,13 +75,55 @@ function calculatePhaseForDate(
 
 export default function CalendarScreen() {
   const dispatch = useDispatch();
+  const { theme, accentColor, themeName } = useTheme();
   const cycleState = useSelector((state: RootState) => state.cycle);
 
-  const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  const [showLogModal, setShowLogModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [showLogModal, setShowLogModal] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().split('T')[0]);
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [showQuickNoteModal, setShowQuickNoteModal] = useState(false);
+  const [editingQuickNote, setEditingQuickNote] = useState<QuickNote | null>(null);
+  const [showSymptomTrackerModal, setShowSymptomTrackerModal] = useState(false);
+
+  const entriesMap = useMemo(() => {
+    return cycleState.entries.reduce<Record<string, CycleEntry>>((acc, entry) => {
+      acc[entry.date] = entry;
+      return acc;
+    }, {});
+  }, [cycleState.entries]);
+
+  // Get quick notes for selected date (for modal)
+  const quickNotesForDate = useMemo(() => {
+    if (!selectedDate) return [];
+    // Get from entries first, then from global quickNotes
+    const entry = entriesMap[selectedDate];
+    if (entry?.quickNotes && entry.quickNotes.length > 0) {
+      return entry.quickNotes;
+    }
+    // Fallback to global quickNotes
+    return cycleState.quickNotes.filter(note => note.date === selectedDate);
+  }, [selectedDate, entriesMap, cycleState.quickNotes]);
+
+  // Get today's data
+  const today = new Date().toISOString().split('T')[0];
+  const todayEntry = entriesMap[today];
+  
+  // Get quick notes for today (for main page)
+  const todayQuickNotes = useMemo(() => {
+    if (todayEntry?.quickNotes && todayEntry.quickNotes.length > 0) {
+      return todayEntry.quickNotes;
+    }
+    return cycleState.quickNotes.filter(note => note.date === today);
+  }, [todayEntry, cycleState.quickNotes, today]);
+
+  // Get today's symptoms
+  const todaySymptoms = useMemo(() => {
+    return todayEntry?.symptoms || null;
+  }, [todayEntry]);
+
+  const selectedEntry = selectedDate ? entriesMap[selectedDate] : undefined;
+
+  // Removed symptom draft useEffect - now handled in SymptomTrackerModal
 
   // Generate marked dates with phase colors and entry indicators
   const markedDates = useMemo(() => {
@@ -92,10 +149,10 @@ export default function CalendarScreen() {
         const customStyles: any = {
           container: {
             borderRadius: 8,
-            backgroundColor: '#f3f4f6', // light gray bg
+            backgroundColor: theme.primarySoft, // Use theme for grayed out days
           },
           text: {
-            color: '#9ca3af', // gray text
+            color: theme.textSecondary, // Use theme text color
             fontWeight: '500',
           },
         };
@@ -136,7 +193,7 @@ export default function CalendarScreen() {
           customStyles.container.backgroundColor = phaseColor + '20';
         }
 
-        customStyles.text.color = '#1f2937';
+        customStyles.text.color = theme.textPrimary;
 
         // Phase border
 
@@ -159,14 +216,19 @@ export default function CalendarScreen() {
         customStyles.text.color = '#92400e';
       }
 
-      // Selected styling
-      if (selectedDates.includes(dateString)) {
-        customStyles.container.backgroundColor = '#a855f7';
-        customStyles.container.borderColor = '#7c3aed';
+      // Selected styling - use accent color for UI interaction
+      const isSelected = dateString === selectedDate;
+      if (isSelected) {
+        customStyles.container.backgroundColor = accentColor;
+        customStyles.container.borderColor = accentColor;
         customStyles.container.borderWidth = 2;
         customStyles.text.color = '#fff';
         customStyles.text.fontWeight = '700';
       }
+
+      // Check for quick notes
+      const hasQuickNotes = cycleState.quickNotes.some(note => note.date === dateString) ||
+        entry?.quickNotes && entry.quickNotes.length > 0;
 
       // Markers for indicators
       const dots: any[] = [];
@@ -176,233 +238,312 @@ export default function CalendarScreen() {
       if (hasSymptoms) {
         dots.push({ key: 'symptoms', color: '#8b5cf6', selectedDotColor: '#8b5cf6' });
       }
-      if (selectedDates.includes(dateString)) {
+      if (hasQuickNotes) {
+        dots.push({ key: 'notes', color: '#10b981', selectedDotColor: '#10b981' });
+      }
+      if (isSelected) {
         dots.push({ key: 'selected', color: '#fff', selectedDotColor: '#fff' });
       }
 
       marked[dateString] = {
         customStyles,
         dots: dots.length > 0 ? dots : undefined,
-        selected: selectedDates.includes(dateString),
+        selected: isSelected,
       };
     }
 
     return marked;
-  }, [currentMonth, cycleState.entries, cycleState.profile, selectedDates]);
+  }, [currentMonth, cycleState.entries, cycleState.profile, cycleState.quickNotes, selectedDate, theme, accentColor]);
 
-  const handleDayPress = useCallback((day: DateData) => {
-    const dateString = day.dateString;
-
-    if (isMultiSelectMode) {
-      setSelectedDates(prev =>
-        prev.includes(dateString)
-          ? prev.filter(d => d !== dateString)
-          : [...prev, dateString]
-      );
-    } else {
-      setSelectedDate(dateString);
-      setSelectedDates([dateString]);
-      setShowLogModal(true);
-    }
-  }, [isMultiSelectMode]);
-
-  const logMultipleDates = useCallback((isPeriod: boolean) => {
-    selectedDates.forEach(date => {
-      dispatch(addEntry({
-        date,
-        isPeriod,
-        symptoms: {
-          mood: 3,
-          cramps: isPeriod ? 2 : 0,
-          energy: isPeriod ? 2 : 3,
-        },
-      }));
-    });
-
-    dispatch(calculatePredictions());
-    setSelectedDates([]);
-    setIsMultiSelectMode(false);
+  const resetSelections = useCallback(() => {
     setShowLogModal(false);
-  }, [selectedDates, dispatch]);
+  }, []);
 
-  // Add this new function to unmark/delete periods
-  // Add this new function to unmark/delete periods
-  const unmarkPeriodDates = useCallback(() => {
-    if (selectedDates.length === 0) return;
+  const upsertEntry = useCallback(
+    async (date: string, updates: Partial<CycleEntry>) => {
+      const existing = entriesMap[date];
+      let entryToSync: CycleEntry;
 
-    selectedDates.forEach(date => {
-      const entry = cycleState.entries.find(e => e.date === date && e.isPeriod);
-      if (entry) {
-        // Check if entry has symptoms
-        const hasSymptoms = entry.symptoms &&
-          Object.values(entry.symptoms).some(value => value !== undefined && value !== null);
-
-        if (hasSymptoms) {
-          // If entry has symptoms, just unmark period but keep symptoms
-          dispatch(addEntry({
-            date,
-            isPeriod: false,
-            symptoms: entry.symptoms,
-          }));
-        } else {
-          // If entry only has period (no symptoms), delete it entirely
-          dispatch(deleteEntry(date));
-        }
+      if (existing) {
+        const updatedEntry = { ...existing, ...updates };
+        dispatch(updateEntry({ date, updates }));
+        entryToSync = updatedEntry;
+      } else {
+        const newEntry: CycleEntry = {
+          date,
+          isPeriod: false,
+          ...updates,
+        };
+        dispatch(addEntry(newEntry));
+        entryToSync = newEntry;
       }
-    });
 
-    dispatch(calculatePredictions());
-    setSelectedDates([]);
-    setIsMultiSelectMode(false);
+      // Sync to backend
+      try {
+        const { cycleEntryService } = await import('@/services/cycleEntryService');
+        const result = await cycleEntryService.saveCycleEntry(entryToSync);
+        if (result) {
+          console.log('✅ [Calendar] Cycle entry synced to backend');
+        } else {
+          console.warn('⚠️ [Calendar] Cycle entry sync returned null (check logs for details)');
+        }
+      } catch (error) {
+        console.error('❌ [Calendar] Failed to sync cycle entry:', error);
+        // Continue even if sync fails - entry is saved locally
+      }
+    },
+    [dispatch, entriesMap]
+  );
+
+  const handleDayPress = useCallback(
+    (day: DateData) => {
+      const dateString = day.dateString;
+      setSelectedDate(dateString);
+      setShowLogModal(true);
+    },
+    []
+  );
+
+  const logPeriodDates = useCallback(
+    async (date: string) => {
+      const existing = entriesMap[date];
+      await upsertEntry(date, {
+        isPeriod: true,
+        symptoms: existing?.symptoms,
+      });
+      dispatch(calculatePredictions());
+      resetSelections();
+    },
+    [entriesMap, upsertEntry, dispatch, resetSelections]
+  );
+
+  const logSymptomsDates = useCallback(
+    async (date: string, symptoms: SymptomState) => {
+      const existing = entriesMap[date];
+      await upsertEntry(date, {
+        isPeriod: existing?.isPeriod ?? false,
+        symptoms,
+      });
+      dispatch(calculatePredictions());
+      resetSelections();
+    },
+    [entriesMap, upsertEntry, dispatch, resetSelections]
+  );
+
+  const handleLogPeriodSingle = useCallback(async () => {
+    if (!selectedDate) return;
+    await logPeriodDates(selectedDate);
     setShowLogModal(false);
-  }, [selectedDates, cycleState.entries, dispatch]);
+  }, [selectedDate, logPeriodDates]);
 
-  // Check if selected date is already a period
-  const isDatePeriod = useMemo(() => {
-    if (selectedDates.length === 0) return false;
-    return selectedDates.some(date =>
-      cycleState.entries.some(e => e.date === date && e.isPeriod)
-    );
-  }, [selectedDates, cycleState.entries]);
+  const handleSaveSymptoms = useCallback(async (symptoms: SymptomState) => {
+    if (!selectedDate) return;
+    await logSymptomsDates(selectedDate, symptoms);
+    setShowSymptomTrackerModal(false);
+  }, [selectedDate, logSymptomsDates]);
+
+  const handleOpenSymptomTracker = useCallback(() => {
+    setShowSymptomTrackerModal(true);
+  }, []);
+
+
+  // Unmark period handler
+  const handleUnmarkPeriod = useCallback(async () => {
+    if (!selectedDate) return;
+    const entry = entriesMap[selectedDate];
+    if (!entry) return;
+
+    const hasSymptoms =
+      entry.symptoms &&
+      Object.values(entry.symptoms).some(
+        value => value !== undefined && value !== null
+      );
+
+    if (hasSymptoms) {
+      await upsertEntry(selectedDate, { isPeriod: false });
+    } else {
+      dispatch(deleteEntry(selectedDate));
+    }
+    
+    dispatch(calculatePredictions());
+    resetSelections();
+  }, [selectedDate, entriesMap, upsertEntry, dispatch, resetSelections]);
 
   const handleMonthChange = useCallback((month: any) => {
     setCurrentMonth(month.dateString);
   }, []);
 
+  // Quick Note Handlers
+  const handleOpenQuickNoteModal = useCallback((note?: QuickNote) => {
+    setEditingQuickNote(note || null);
+    setShowQuickNoteModal(true);
+  }, []);
+
+  const handleCloseQuickNoteModal = useCallback(() => {
+    setShowQuickNoteModal(false);
+    setEditingQuickNote(null);
+  }, []);
+
+  const handleSaveQuickNote = useCallback(async (note: Omit<QuickNote, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      if (editingQuickNote?.id) {
+        // Update existing note
+        const updatedNote = await quickNoteService.updateQuickNote(editingQuickNote.id, note);
+        if (updatedNote) {
+          dispatch(updateQuickNote({ id: editingQuickNote.id, updates: updatedNote }));
+        }
+      } else {
+        // Create new note
+        const createdNote = await quickNoteService.createQuickNote(note);
+        if (createdNote) {
+          dispatch(addQuickNote(createdNote));
+        } else {
+          // Fallback: add locally if API fails
+          dispatch(addQuickNote(note as QuickNote));
+        }
+      }
+      handleCloseQuickNoteModal();
+    } catch (error) {
+      console.error('Error saving quick note:', error);
+      // Still add/update locally even if sync fails
+      if (editingQuickNote?.id) {
+        dispatch(updateQuickNote({ id: editingQuickNote.id, updates: note }));
+      } else {
+        dispatch(addQuickNote(note as QuickNote));
+      }
+      handleCloseQuickNoteModal();
+    }
+  }, [dispatch, editingQuickNote, handleCloseQuickNoteModal]);
+
+  const handleDeleteQuickNote = useCallback(async (id: string) => {
+    try {
+      await quickNoteService.deleteQuickNote(id);
+      dispatch(deleteQuickNote(id));
+    } catch (error) {
+      console.error('Error deleting quick note:', error);
+      // Still delete locally even if API fails
+      dispatch(deleteQuickNote(id));
+    }
+  }, [dispatch]);
+
+  const dynamicStyles = useMemo(() => createDynamicStyles(theme, accentColor), [theme, accentColor]);
+
+  // Memoize calendar theme to ensure it updates when theme changes
+  const calendarTheme = useMemo(() => ({
+    backgroundColor: theme.cardBackground,
+    calendarBackground: theme.cardBackground,
+    textSectionTitleColor: theme.textSecondary,
+    textSectionTitleDisabledColor: theme.textSecondary,
+    selectedDayBackgroundColor: accentColor, // Use accent color for selected date (UI state)
+    selectedDayTextColor: '#fff',
+    todayTextColor: '#92400e', // Keep today color as-is (data indicator)
+    dayTextColor: theme.textPrimary,
+    textDisabledColor: theme.textSecondary,
+    dotColor: '#ec4899', // Keep period dot color as-is (data)
+    selectedDotColor: '#fff',
+    arrowColor: accentColor, // Use accent color for navigation arrows
+    monthTextColor: theme.textPrimary,
+    textDayFontFamily: 'System',
+    textDayFontWeight: '500',
+    textDayFontSize: 16,
+    textMonthFontFamily: 'Bold',
+    textMonthFontWeight: '700',
+    textMonthFontSize: 20,
+    textDayHeaderFontFamily: 'Bold',
+    textDayHeaderFontWeight: '600',
+    textDayHeaderFontSize: 12,
+    'stylesheet.calendar.header': {
+      week: {
+        marginTop: 5,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 6,
+      },
+    },
+  } as any), [theme, accentColor]);
+
+  // Create a unique key that changes when theme or accent color changes to force Calendar remount
+  const calendarKey = useMemo(() => `${themeName}-${accentColor}`, [themeName, accentColor]);
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[dynamicStyles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View style={styles.header}>
-        <AppText variant='bold' style={{ fontSize: 30, fontWeight: '400', textAlign: 'center', }}>Cycle Calendar</AppText>
-        <Text style={styles.subtitle}>Track your period and symptoms</Text>
+      <View style={[dynamicStyles.header, { backgroundColor: theme.cardBackground }]}>
+        <AppText variant='bold' style={[dynamicStyles.title, { color: theme.textPrimary }]}>Cycle Calendar</AppText>
+        <Text style={[dynamicStyles.subtitle, { color: accentColor }]}>Track your period and symptoms</Text>
       </View>
 
       {/* Calendar Navigation */}
-      <View style={styles.calendarWrapper}>
+      <View style={[dynamicStyles.calendarWrapper, { backgroundColor: theme.cardBackground }]}>
         <Calendar
+          key={calendarKey}
           current={currentMonth}
           onMonthChange={handleMonthChange}
           markingType="custom"
           markedDates={markedDates}
           onDayPress={handleDayPress}
-          firstDay={0}
+          firstDay={1}
           enableSwipeMonths={true}
-          theme={{
-            backgroundColor: '#fff',
-            calendarBackground: '#fff',
-            textSectionTitleColor: '#6b7280',
-            textSectionTitleDisabledColor: '#d1d5db',
-            selectedDayBackgroundColor: '#a855f7',
-            selectedDayTextColor: '#fff',
-            todayTextColor: '#92400e',
-            dayTextColor: '#1f2937',
-            textDisabledColor: '#9ca3af',
-            dotColor: '#ec4899',
-            selectedDotColor: '#fff',
-            arrowColor: '#4b5563',
-            monthTextColor: '#1f2937',
-            textDayFontFamily: 'System',
-            textDayFontWeight: '500',
-            textDayFontSize: 16,
-            textMonthFontFamily: 'System',
-            textMonthFontWeight: '700',
-            textMonthFontSize: 20,
-            textDayHeaderFontFamily: 'System',
-            textDayHeaderFontWeight: '600',
-            textDayHeaderFontSize: 12,
-            'stylesheet.calendar.header': {
-              week: {
-                marginTop: 5,
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                paddingHorizontal: 8,
-              },
-            },
-          }}
-          style={styles.calendar}
+          theme={calendarTheme}
+          style={dynamicStyles.calendar}
         />
       </View>
 
-      {/* Multi-Select Controls */}
-      <View style={styles.multiSelectControls}>
-        {!isMultiSelectMode ? (
-          <TouchableOpacity
-            onPress={() => setIsMultiSelectMode(true)}
-            style={styles.multiSelectButton}
-          >
-            <Plus size={16} color="#ec4899" />
-            <Text style={styles.multiSelectButtonText}>Multi-Select Period Days</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.multiSelectActiveControls}>
-            <Text style={styles.selectedCountText}>
-              {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''} selected
-            </Text>
-            <View style={styles.multiSelectActions}>
-              <TouchableOpacity
-                onPress={() => logMultipleDates(true)}
-                style={[styles.multiSelectActionButton, styles.logPeriodButton]}
-                disabled={selectedDates.length === 0}
-              >
-                <Droplets size={16} color="#fff" />
-                <Text style={styles.multiSelectActionText}>Log as Period</Text>
-              </TouchableOpacity>
 
-              {/* Add unmark button - show if any selected dates are periods */}
-              {selectedDates.some(date =>
-                cycleState.entries.some(e => e.date === date && e.isPeriod)
-              ) && (
-                  <TouchableOpacity
-                    onPress={() => unmarkPeriodDates()}
-                    style={[styles.multiSelectActionButton, styles.unmarkPeriodButton]}
-                    disabled={selectedDates.length === 0}
-                  >
-                    <X size={16} color="#fff" />
-                    <Text style={styles.multiSelectActionText}>Unmark Period</Text>
-                  </TouchableOpacity>
-                )}
-
-              <TouchableOpacity
-                onPress={() => {
-                  setIsMultiSelectMode(false);
-                  setSelectedDates([]);
-                }}
-                style={styles.cancelButton}
-              >
-                <X size={16} color="#6b7280" />
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </View>
+      {/* Today's Summary Card */}
+      <TodaySummaryCard
+        date={today}
+        symptoms={todaySymptoms}
+        quickNotes={todayQuickNotes}
+        isPeriod={todayEntry?.isPeriod ?? false}
+        onAddNote={() => {
+          setSelectedDate(today);
+          handleOpenQuickNoteModal();
+        }}
+        onAddSymptoms={() => {
+          setSelectedDate(today);
+          setShowSymptomTrackerModal(true);
+        }}
+        onLogPeriod={async () => {
+          setSelectedDate(today);
+          await handleLogPeriodSingle();
+        }}
+        onEditNote={(note) => {
+          setSelectedDate(note.date);
+          handleOpenQuickNoteModal(note as QuickNote);
+        }}
+      />
 
       {/* Legend */}
-      <View style={styles.legend}>
-        <Text style={styles.legendTitle}>Legend</Text>
-        <View style={styles.legendItems}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#ec4899' }]} />
-            <Text style={styles.legendText}>Period</Text>
+      <View style={[dynamicStyles.legend, { backgroundColor: theme.cardBackground }]}>
+        <Text style={[dynamicStyles.legendTitle, { color: theme.textPrimary }]}>Legend</Text>
+        <View style={dynamicStyles.legendItems}>
+          <View style={dynamicStyles.legendItem}>
+            <View style={[dynamicStyles.legendColor, { backgroundColor: '#ec4899' }]} />
+            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Period</Text>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#8b5cf6' }]} />
-            <Text style={styles.legendText}>Symptoms logged</Text>
+          <View style={dynamicStyles.legendItem}>
+            <View style={[dynamicStyles.legendColor, { backgroundColor: '#8b5cf6' }]} />
+            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Symptoms logged</Text>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#f59e0b', borderRadius: 2 }]} />
-            <Text style={styles.legendText}>Today</Text>
+          <View style={dynamicStyles.legendItem}>
+            <View style={[dynamicStyles.legendColor, { backgroundColor: '#10b981' }]} />
+            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Quick notes</Text>
+          </View>
+          <View style={dynamicStyles.legendItem}>
+            <View style={[dynamicStyles.legendColor, { backgroundColor: '#f59e0b', borderRadius: 2 }]} />
+            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Today</Text>
           </View>
         </View>
 
         {/* Phase colors legend */}
-        <Text style={[styles.legendTitle, { marginTop: 16 }]}>Phase Colors</Text>
-        <View style={styles.legendItems}>
+        <Text style={[dynamicStyles.legendTitle, { marginTop: 16, color: theme.textPrimary }]}>Phase Colors</Text>
+        <View style={dynamicStyles.legendItems}>
           {Object.entries(phaseRecommendations).map(([key, phase]) => (
-            <View key={key} style={styles.legendItem}>
+            <View key={key} style={dynamicStyles.legendItem}>
               <View
                 style={[
-                  styles.legendColor,
+                  dynamicStyles.legendColor,
                   {
                     backgroundColor: phase.color + '20',
                     borderWidth: 2,
@@ -410,120 +551,78 @@ export default function CalendarScreen() {
                   },
                 ]}
               />
-              <Text style={styles.legendText}>{phase.name}</Text>
+              <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>{phase.name}</Text>
             </View>
           ))}
         </View>
       </View>
 
-      {/* Log Entry Modal */}
-      {/* Log Entry Modal */}
-      <Modal
+      {/* Date Action Modal */}
+      <DateActionModal
         visible={showLogModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          setShowLogModal(false);
-          setSelectedDates([]);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {selectedDate && new Date(selectedDate).toLocaleDateString()}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowLogModal(false);
-                  setSelectedDates([]);
-                }}
-              >
-                <X size={24} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
+        onClose={() => setShowLogModal(false)}
+        selectedDate={selectedDate}
+        entry={selectedEntry}
+        quickNotes={quickNotesForDate}
+        onLogPeriod={handleLogPeriodSingle}
+        onUnmarkPeriod={handleUnmarkPeriod}
+        onOpenSymptomTracker={handleOpenSymptomTracker}
+        onOpenQuickNoteModal={() => handleOpenQuickNoteModal()}
+        onEditQuickNote={(note) => handleOpenQuickNoteModal(note)}
+      />
 
-            <View style={styles.modalOptions}>
-              {isDatePeriod ? (
-                // Show unmark option if already a period
-                <>
-                  <TouchableOpacity
-                    style={[styles.modalOption, styles.deleteOption]}
-                    onPress={() => unmarkPeriodDates()}
-                  >
-                    <X size={24} color="#dc2626" />
-                    <Text style={[styles.modalOptionText, styles.deleteOptionText]}>
-                      Unmark Period
-                    </Text>
-                  </TouchableOpacity>
+      {/* Quick Note Modal */}
+      <QuickNoteModal
+        visible={showQuickNoteModal}
+        onClose={handleCloseQuickNoteModal}
+        onSave={handleSaveQuickNote}
+        onDelete={editingQuickNote?.id ? handleDeleteQuickNote : undefined}
+        initialNote={editingQuickNote}
+        date={selectedDate}
+      />
 
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => logMultipleDates(false)}
-                  >
-                    <Plus size={24} color="#8b5cf6" />
-                    <Text style={styles.modalOptionText}>Log Symptoms Only</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                // Show log options if not a period
-                <>
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => logMultipleDates(true)}
-                  >
-                    <Droplets size={24} color="#ec4899" />
-                    <Text style={styles.modalOptionText}>Log Period Day</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.modalOption}
-                    onPress={() => logMultipleDates(false)}
-                  >
-                    <Plus size={24} color="#8b5cf6" />
-                    <Text style={styles.modalOptionText}>Log Symptoms Only</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Symptom Tracker Modal */}
+      <SymptomTrackerModal
+        visible={showSymptomTrackerModal}
+        onClose={() => setShowSymptomTrackerModal(false)}
+        onSave={handleSaveSymptoms}
+        date={selectedDate}
+        initialSymptoms={selectedEntry?.symptoms}
+      />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+// ============================================================================
+// DYNAMIC STYLES (Theme-aware)
+// ============================================================================
+
+const createDynamicStyles = (theme: any, accentColor: string) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF0F8',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 30,
-    backgroundColor: '#fdf2f8',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
+    fontSize: 30,
+    fontWeight: '400',
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ec4899',
     textAlign: 'center',
   },
   calendarWrapper: {
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 16,
     padding: 12,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: accentColor,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -531,81 +630,12 @@ const styles = StyleSheet.create({
   calendar: {
     borderRadius: 12,
   },
-  multiSelectControls: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  multiSelectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#fce7f3',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#f3e8ff',
-  },
-  multiSelectButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ec4899',
-  },
-  multiSelectActiveControls: {
-    gap: 12,
-  },
-  selectedCountText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4b5563',
-    textAlign: 'center',
-  },
-  multiSelectActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  multiSelectActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  logPeriodButton: {
-    backgroundColor: '#ec4899',
-  },
-  multiSelectActionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  cancelButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
   legend: {
     margin: 24,
     padding: 20,
-    backgroundColor: '#fff',
     borderRadius: 16,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: accentColor,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -613,8 +643,6 @@ const styles = StyleSheet.create({
   legendTitle: {
     fontSize: 18,
     fontFamily: 'Bold',
-    // fontWeight: '700',
-    color: '#1f2937',
     marginBottom: 12,
   },
   legendItems: {
@@ -633,58 +661,5 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4b5563',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    margin: 20,
-    borderRadius: 20,
-    padding: 24,
-    minWidth: 300,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    flex: 1,
-  },
-  modalOptions: {
-    gap: 16,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    padding: 16,
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-  },
-  modalOptionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1f2937',
-  },
-  unmarkPeriodButton: {
-    backgroundColor: '#dc2626',
-  },
-  deleteOption: {
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  deleteOptionText: {
-    color: '#dc2626',
   },
 });

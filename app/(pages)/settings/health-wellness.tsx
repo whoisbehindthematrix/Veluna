@@ -1,11 +1,13 @@
 /**
- * Profile Settings Page
+ * Health & Wellness Settings Page
  * 
- * Handles personal information only:
- * - Full name
- * - Date of birth
- * - Gender
- * - Timezone
+ * Handles health and wellness related settings:
+ * - Activity level
+ * - Daily calorie goal
+ * - Height & weight
+ * - Target weight
+ * - Units system
+ * - Wellness goals
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,7 +24,16 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Calendar, ChevronLeft, Globe, RefreshCcw, Save, User } from 'lucide-react-native';
+import {
+  Activity as ActivityIcon,
+  ChevronLeft,
+  Globe,
+  RefreshCcw,
+  Ruler,
+  Save,
+  Target,
+  Weight,
+} from 'lucide-react-native';
 import AppText from '@/components/core-components/AppText';
 import { useTheme } from '@/src/context/ThemeContext';
 import api from '@/lib/api';
@@ -31,33 +42,39 @@ import type { UserProfile as UserProfileState } from '@/src/store/slices/userPro
 import {
   BackendProfile,
   formatDateTime,
-  normaliseDateInput,
-  convertDateToISO,
+  toStringValue,
+  toNumberOrNull,
 } from '@/lib/profileUtils';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type ProfileFormState = {
-  fullName: string;
-  gender: string;
-  dateOfBirth: string;
-  timezone: string;
+type HealthWellnessFormState = {
+  activityLevel: string;
+  dailyCalorieGoal: string;
+  height: string;
+  weight: string;
+  targetWeight: string;
+  unitsSystem: string;
+  wellnessGoals: string;
 };
 
-const DEFAULT_FORM: ProfileFormState = {
-  fullName: '',
-  gender: '',
-  dateOfBirth: '',
-  timezone: '',
+const DEFAULT_FORM: HealthWellnessFormState = {
+  activityLevel: '',
+  dailyCalorieGoal: '',
+  height: '',
+  weight: '',
+  targetWeight: '',
+  unitsSystem: '',
+  wellnessGoals: '',
 };
 
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
-export default function ProfileSettingsScreen() {
+export default function HealthWellnessSettingsScreen() {
   const router = useRouter();
   const { theme, accentColor } = useTheme();
   const { profile, status, error, refresh } = useUserProfile();
@@ -69,7 +86,7 @@ export default function ProfileSettingsScreen() {
   const loadingInFlightRef = useRef(false);
 
   const [backendProfile, setBackendProfile] = useState<BackendProfile | null>(null);
-  const [form, setForm] = useState<ProfileFormState>(DEFAULT_FORM);
+  const [form, setForm] = useState<HealthWellnessFormState>(DEFAULT_FORM);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -80,7 +97,6 @@ export default function ProfileSettingsScreen() {
 
   // Load profile metadata
   const metadata = {
-    createdAt: backendProfile?.createdAt ?? profile?.createdAt ?? null,
     updatedAt: backendProfile?.updatedAt ?? profile?.updatedAt ?? null,
     lastSyncedAt: backendProfile?.lastSyncedAt ?? profile?.lastSyncedAt ?? null,
   };
@@ -96,10 +112,17 @@ export default function ProfileSettingsScreen() {
     const fallback = storeProfile ?? null;
 
     setForm({
-      fullName: source?.fullName ?? fallback?.displayName ?? fallback?.firstName ?? '',
-      gender: source?.gender ?? fallback?.gender ?? '',
-      dateOfBirth: normaliseDateInput(source?.dateOfBirth ?? fallback?.dateOfBirth ?? ''),
-      timezone: source?.timezone ?? fallback?.timezone ?? 'UTC',
+      activityLevel: source?.activityLevel ?? fallback?.activityLevel ?? 'moderate',
+      dailyCalorieGoal: toStringValue(source?.dailyCalorieGoal ?? fallback?.dailyCalorieGoal ?? 2000),
+      height: toStringValue(source?.height ?? fallback?.height),
+      weight: toStringValue(source?.weight ?? fallback?.weight),
+      targetWeight: toStringValue(source?.targetWeight ?? fallback?.targetWeight),
+      unitsSystem: source?.unitsSystem ?? fallback?.unitsSystem ?? 'metric',
+      wellnessGoals: Array.isArray(source?.wellnessGoals)
+        ? source.wellnessGoals.join(', ')
+        : Array.isArray(fallback?.wellnessGoals)
+        ? fallback.wellnessGoals.join(', ')
+        : '',
     });
   }, []);
 
@@ -111,10 +134,10 @@ export default function ProfileSettingsScreen() {
 
     try {
       setLoading(true);
-      console.log('🔵 [Profile] Loading profile from API...');
+      console.log('🔵 [Health & Wellness] Loading profile from API...');
 
       const response = await api.get('/auth/me');
-      console.log('✅ [Profile] API Response received');
+      console.log('✅ [Health & Wellness] API Response received');
 
       const userData = response.data?.user;
       if (!userData) {
@@ -126,11 +149,11 @@ export default function ProfileSettingsScreen() {
         throw new Error('No profile data found in user object');
       }
 
-      console.log('📦 [Profile] Profile loaded successfully');
+      console.log('📦 [Health & Wellness] Profile loaded successfully');
       setBackendProfile(profileData);
       applyFormFromProfile(profileData, profileRef.current);
     } catch (err: any) {
-      console.error('❌ [Profile] Failed to load profile', err);
+      console.error('❌ [Health & Wellness] Failed to load profile', err);
       Alert.alert(
         'Profile Error',
         err.response?.data?.message || err.message || 'Unable to load profile right now.'
@@ -174,7 +197,7 @@ export default function ProfileSettingsScreen() {
   // HANDLERS
   // ============================================================================
 
-  const handleChange = (field: keyof ProfileFormState, value: string) => {
+  const handleChange = (field: keyof HealthWellnessFormState, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
@@ -183,21 +206,24 @@ export default function ProfileSettingsScreen() {
 
     try {
       setSaving(true);
-      console.log('🔵 [Profile] Saving profile...');
-
-      const dateOfBirthISO = convertDateToISO(form.dateOfBirth);
+      console.log('🔵 [Health & Wellness] Saving settings...');
 
       const payload = {
-        fullName: form.fullName.trim() || null,
-        dateOfBirth: dateOfBirthISO || backendProfile?.dateOfBirth || profile?.dateOfBirth || null,
-        gender: form.gender.trim() || null,
-        timezone: form.timezone.trim() || 'UTC',
+        activityLevel: form.activityLevel.trim() || backendProfile?.activityLevel || profile?.activityLevel || 'moderate',
+        dailyCalorieGoal: toNumberOrNull(form.dailyCalorieGoal, backendProfile?.dailyCalorieGoal ?? profile?.dailyCalorieGoal ?? 2000),
+        height: toNumberOrNull(form.height, backendProfile?.height ?? profile?.height ?? null),
+        weight: toNumberOrNull(form.weight, backendProfile?.weight ?? profile?.weight ?? null),
+        targetWeight: toNumberOrNull(form.targetWeight, backendProfile?.targetWeight ?? profile?.targetWeight ?? null),
+        unitsSystem: form.unitsSystem?.trim() || backendProfile?.unitsSystem || profile?.unitsSystem || 'metric',
+        wellnessGoals: form.wellnessGoals
+          ? form.wellnessGoals.split(',').map(item => item.trim()).filter(Boolean)
+          : backendProfile?.wellnessGoals ?? profile?.wellnessGoals ?? [],
       };
 
-      console.log('📤 [Profile] Saving payload:', payload);
+      console.log('📤 [Health & Wellness] Saving payload:', payload);
 
       const response = await api.put('/auth/me', payload);
-      console.log('✅ [Profile] Save successful');
+      console.log('✅ [Health & Wellness] Save successful');
 
       const userData = response.data?.user;
       if (!userData) {
@@ -210,7 +236,7 @@ export default function ProfileSettingsScreen() {
       }
 
       if (response.data && 'success' in response.data && response.data.success === false) {
-        throw new Error(response.data.message || 'Failed to update profile.');
+        throw new Error(response.data.message || 'Failed to update settings.');
       }
 
       setBackendProfile(profileData);
@@ -221,9 +247,9 @@ export default function ProfileSettingsScreen() {
         refreshPromise.catch(() => undefined);
       }
 
-      Alert.alert('Profile Updated', 'Your personal information has been saved successfully.');
+      Alert.alert('Settings Updated', 'Your health & wellness settings have been saved successfully.');
     } catch (err: any) {
-      console.error('❌ [Profile] Failed to save profile', err);
+      console.error('❌ [Health & Wellness] Failed to save settings', err);
       Alert.alert(
         'Unable to Save',
         err.response?.data?.message || err.message || 'Please try again in a moment.'
@@ -280,9 +306,9 @@ export default function ProfileSettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          <AppText style={[dynamicStyles.headerTitle, { color: theme.textPrimary }]}>Personal Information</AppText>
+          <AppText style={[dynamicStyles.headerTitle, { color: theme.textPrimary }]}>Health & Wellness</AppText>
           <AppText style={[dynamicStyles.headerSubtitle, { color: theme.textSecondary }]}>
-            Update your personal details to personalize your wellness experience.
+            Configure your health goals and preferences for personalized insights.
           </AppText>
         </LinearGradient>
 
@@ -291,7 +317,7 @@ export default function ProfileSettingsScreen() {
           <View style={[dynamicStyles.loadingBanner, { backgroundColor: `${accentColor}20` }]}>
             <ActivityIndicator color={accentColor} size="small" />
             <AppText style={[dynamicStyles.loadingText, { color: accentColor }]}>
-              {saving ? 'Saving changes…' : 'Loading profile…'}
+              {saving ? 'Saving changes…' : 'Loading settings…'}
             </AppText>
           </View>
         )}
@@ -304,58 +330,107 @@ export default function ProfileSettingsScreen() {
           </View>
         )}
 
-        {/* Personal Information Form */}
+        {/* Health & Wellness Form */}
         <View style={[dynamicStyles.card, { 
           backgroundColor: theme.cardBackground, 
           borderColor: theme.border,
           shadowColor: accentColor,
         }]}>
-          <AppText style={[dynamicStyles.sectionLabel, { color: theme.textPrimary }]}>Personal Information</AppText>
+          <AppText style={[dynamicStyles.sectionLabel, { color: theme.textPrimary }]}>Activity & Nutrition</AppText>
+
+          <View style={dynamicStyles.fieldRow}>
+            <ProfileField
+              theme={theme}
+              accentColor={accentColor}
+              dynamicStyles={dynamicStyles}
+              icon={<ActivityIcon size={18} color={accentColor} />}
+              label="Activity level"
+              value={form.activityLevel}
+              placeholder="moderate"
+              onChangeText={v => handleChange('activityLevel', v)}
+              containerStyle={dynamicStyles.fieldHalf}
+            />
+
+            <ProfileField
+              theme={theme}
+              accentColor={accentColor}
+              dynamicStyles={dynamicStyles}
+              icon={<Target size={18} color={accentColor} />}
+              label="Daily calorie goal"
+              value={form.dailyCalorieGoal}
+              placeholder="2000"
+              keyboardType="numeric"
+              onChangeText={v => handleChange('dailyCalorieGoal', v)}
+              containerStyle={dynamicStyles.fieldHalf}
+            />
+          </View>
+
+          <View style={dynamicStyles.fieldRow}>
+            <ProfileField
+              theme={theme}
+              accentColor={accentColor}
+              dynamicStyles={dynamicStyles}
+              icon={<Weight size={18} color={accentColor} />}
+              label="Current weight"
+              value={form.weight}
+              placeholder="60"
+              keyboardType="numeric"
+              onChangeText={v => handleChange('weight', v)}
+              containerStyle={dynamicStyles.fieldHalf}
+            />
+
+            <ProfileField
+              theme={theme}
+              accentColor={accentColor}
+              dynamicStyles={dynamicStyles}
+              icon={<Weight size={18} color={accentColor} />}
+              label="Target weight"
+              value={form.targetWeight}
+              placeholder="55"
+              keyboardType="numeric"
+              onChangeText={v => handleChange('targetWeight', v)}
+              containerStyle={dynamicStyles.fieldHalf}
+            />
+          </View>
 
           <ProfileField
             theme={theme}
             accentColor={accentColor}
             dynamicStyles={dynamicStyles}
-            icon={<User size={18} color={accentColor} />}
-            label="Full name"
-            value={form.fullName}
-            placeholder="Jane Doe"
-            onChangeText={v => handleChange('fullName', v)}
+            icon={<Ruler size={18} color={accentColor} />}
+            label="Height"
+            value={form.height}
+            placeholder="170"
+            keyboardType="numeric"
+            onChangeText={v => handleChange('height', v)}
           />
 
-          <ProfileField
-            theme={theme}
-            accentColor={accentColor}
-            dynamicStyles={dynamicStyles}
-            icon={<Calendar size={18} color={accentColor} />}
-            label="Date of birth"
-            helper="Format: YYYY-MM-DD"
-            value={form.dateOfBirth}
-            placeholder="1995-02-14"
-            onChangeText={v => handleChange('dateOfBirth', v)}
-          />
+          <View style={dynamicStyles.fieldRow}>
+            <ProfileField
+              theme={theme}
+              accentColor={accentColor}
+              dynamicStyles={dynamicStyles}
+              icon={<Globe size={18} color={accentColor} />}
+              label="Units system"
+              value={form.unitsSystem}
+              placeholder="metric / imperial"
+              onChangeText={v => handleChange('unitsSystem', v)}
+              containerStyle={dynamicStyles.fieldHalf}
+            />
 
-          <ProfileField
-            theme={theme}
-            accentColor={accentColor}
-            dynamicStyles={dynamicStyles}
-            icon={<User size={18} color={accentColor} />}
-            label="Gender"
-            value={form.gender}
-            placeholder="female"
-            onChangeText={v => handleChange('gender', v)}
-          />
-
-          <ProfileField
-            theme={theme}
-            accentColor={accentColor}
-            dynamicStyles={dynamicStyles}
-            icon={<Globe size={18} color={accentColor} />}
-            label="Timezone"
-            value={form.timezone}
-            placeholder="UTC"
-            onChangeText={v => handleChange('timezone', v)}
-          />
+            <ProfileField
+              theme={theme}
+              accentColor={accentColor}
+              dynamicStyles={dynamicStyles}
+              icon={<Target size={18} color={accentColor} />}
+              label="Wellness goals"
+              helper="Separate with commas"
+              value={form.wellnessGoals}
+              placeholder="sleep, mood, nutrition"
+              onChangeText={v => handleChange('wellnessGoals', v)}
+              containerStyle={dynamicStyles.fieldHalf}
+            />
+          </View>
         </View>
 
         {/* Metadata Section */}
@@ -364,10 +439,9 @@ export default function ProfileSettingsScreen() {
           borderColor: theme.border,
           shadowColor: accentColor,
         }]}>
-          <AppText style={[dynamicStyles.sectionLabel, { color: theme.textPrimary }]}>Account Information</AppText>
+          <AppText style={[dynamicStyles.sectionLabel, { color: theme.textPrimary }]}>Sync Information</AppText>
           <MetadataRow theme={theme} dynamicStyles={dynamicStyles} label="Last synced" value={formatDateTime(metadata.lastSyncedAt)} />
           <MetadataRow theme={theme} dynamicStyles={dynamicStyles} label="Last updated" value={formatDateTime(metadata.updatedAt)} />
-          <MetadataRow theme={theme} dynamicStyles={dynamicStyles} label="Account created" value={formatDateTime(metadata.createdAt)} />
         </View>
 
         {/* Save Button */}
@@ -406,7 +480,9 @@ function ProfileField({
   onChangeText,
   placeholder,
   helper,
+  keyboardType,
   editable = true,
+  containerStyle,
   theme,
   accentColor,
   dynamicStyles,
@@ -417,13 +493,15 @@ function ProfileField({
   onChangeText?: (text: string) => void;
   placeholder?: string;
   helper?: string;
+  keyboardType?: 'default' | 'numeric';
   editable?: boolean;
+  containerStyle?: any;
   theme: any;
   accentColor: string;
   dynamicStyles: any;
 }) {
   return (
-    <View style={dynamicStyles.fieldContainer}>
+    <View style={[dynamicStyles.fieldContainer, containerStyle]}>
       <View style={dynamicStyles.fieldLabelRow}>
         <View style={[dynamicStyles.fieldIcon, { backgroundColor: `${accentColor}20` }]}>{icon}</View>
         <AppText style={[dynamicStyles.fieldLabel, { color: theme.textPrimary }]}>{label}</AppText>
@@ -443,6 +521,7 @@ function ProfileField({
         placeholder={placeholder}
         placeholderTextColor={theme.textSecondary}
         editable={editable}
+        keyboardType={keyboardType}
       />
       {helper ? <AppText style={[dynamicStyles.helperText, { color: theme.textSecondary }]}>{helper}</AppText> : null}
     </View>
@@ -601,6 +680,13 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontSize: 11,
     marginTop: 6,
   },
+  fieldRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fieldHalf: {
+    flex: 1,
+  },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -634,3 +720,4 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontSize: 16,
   },
 });
+
