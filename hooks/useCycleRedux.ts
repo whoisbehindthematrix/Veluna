@@ -1,6 +1,6 @@
 // hooks/useCycleRedux.ts
 import { useSelector, useDispatch } from 'react-redux';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { RootState, AppDispatch } from '../src/store';
 import { 
   addEntry, 
@@ -16,6 +16,9 @@ import { cycleEntryService } from '../services/cycleEntryService';
 export const useCycleRedux = () => {
   const dispatch = useDispatch<AppDispatch>();
   const cycleState = useSelector((state: RootState) => state.cycle);
+  const hasLoadedFromBackend = useRef(false);
+  const isInitializing = useRef(true);
+  const syncInProgress = useRef(false);
 
   // Load data on mount
   useEffect(() => {
@@ -46,16 +49,18 @@ export const useCycleRedux = () => {
     saveData();
   }, [cycleState]);
 
-  // Sync cycle entries with backend when they change
+  // Sync cycle entries with backend when they change - but not during initial load
   useEffect(() => {
-    if (cycleState.entries.length > 0) {
+    if (isInitializing.current) return; // Skip during initial load
+    if (hasLoadedFromBackend.current && cycleState.entries.length > 0) {
       syncCycleEntries();
     }
   }, [cycleState.entries.length]);
 
-  // Sync quick notes with backend
+  // Sync quick notes with backend - but not during initial load
   useEffect(() => {
-    if (cycleState.quickNotes.length > 0) {
+    if (isInitializing.current) return; // Skip during initial load
+    if (hasLoadedFromBackend.current && cycleState.quickNotes.length > 0) {
       syncQuickNotes();
     }
   }, [cycleState.quickNotes.length]);
@@ -66,8 +71,13 @@ export const useCycleRedux = () => {
       if (saved) {
         dispatch(loadCycleData(JSON.parse(saved)));
       }
+      // Mark initial load as complete after a short delay
+      setTimeout(() => {
+        isInitializing.current = false;
+      }, 500);
     } catch (error) {
       console.error('Error loading cycle data:', error);
+      isInitializing.current = false;
     }
   };
 
@@ -80,6 +90,8 @@ export const useCycleRedux = () => {
   };
 
   const syncCycleEntries = async () => {
+    if (syncInProgress.current) return; // Prevent concurrent syncs
+    syncInProgress.current = true;
     try {
       // Load cycle entries from backend
       const backendEntries = await cycleEntryService.getCycleEntries();
@@ -89,10 +101,14 @@ export const useCycleRedux = () => {
       }
     } catch (error) {
       console.error('❌ [Cycle] Error syncing cycle entries:', error);
+    } finally {
+      syncInProgress.current = false;
     }
   };
 
   const syncQuickNotes = async () => {
+    if (syncInProgress.current) return; // Prevent concurrent syncs
+    syncInProgress.current = true;
     try {
       // Load quick notes from backend
       const backendNotes = await quickNoteService.getQuickNotes();
@@ -102,13 +118,18 @@ export const useCycleRedux = () => {
       }
     } catch (error) {
       console.error('❌ [Quick Notes] Error syncing quick notes:', error);
+    } finally {
+      syncInProgress.current = false;
     }
   };
 
-  // Load data from backend on mount
+  // Load data from backend on mount - ONLY ONCE
   useEffect(() => {
-    syncCycleEntries();
-    syncQuickNotes();
+    if (!hasLoadedFromBackend.current) {
+      hasLoadedFromBackend.current = true;
+      syncCycleEntries();
+      syncQuickNotes();
+    }
   }, []);
 
   return {

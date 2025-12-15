@@ -1,10 +1,16 @@
 /**
  * Onboarding Service
  * 
- * Handles API communication for onboarding data
+ * Handles API communication for onboarding data split into two parts:
+ * 1. Basic onboarding (/api/onboarding)
+ * 2. Onboarding questions (/api/onboarding/questions)
  */
 
 import api from '@/lib/api';
+import type {
+  BasicOnboardingData,
+  OnboardingQuestionsData,
+} from '@/src/store/slices/onboardingSlice';
 
 // Reactotron logging (only in dev)
 let Reactotron: any = null;
@@ -34,255 +40,163 @@ const logError = (message: string, error: any) => {
   }
   console.error(message, error);
 };
-import type {
-  OnboardingData,
-  WeightRange,
-  HeightRange,
-  ReproductiveStage,
-  HealthGoal,
-  BirthControl,
-  CycleLength,
-  PeriodDuration,
-  MedicalDiagnosis,
-  PhysicalSymptom,
-  PMSMood,
-  StressLevel,
-  FoodStruggle,
-  DietaryLifestyle,
-} from '@/src/store/slices/onboardingSlice';
 
 export interface OnboardingResponse {
   success: boolean;
-  data?: OnboardingData;
+  data?: any;
   message?: string;
 }
 
 /**
- * Convert cycle length enum to numeric value
+ * Clean payload - remove undefined/null values
  */
-function cycleLengthToNumber(cycleLength: CycleLength | undefined | null): number | undefined {
-  if (!cycleLength) return undefined;
-  
-  const mapping: Record<CycleLength, number> = {
-    'less_than_21': 20,
-    '21_24': 23,
-    '25_30': 28, // Average
-    '31_35': 33,
-    'longer_than_35': 36,
-    'irregular': 28, // Default for irregular
-  };
-  
-  return mapping[cycleLength];
-}
-
-/**
- * Convert period duration enum to numeric value
- */
-function periodDurationToNumber(periodDuration: PeriodDuration | undefined | null): number | undefined {
-  if (!periodDuration) return undefined;
-  
-  const mapping: Record<PeriodDuration, number> = {
-    '1_3': 2, // Average of 1-3
-    '4_6': 5, // Average of 4-6
-    '7_plus': 7,
-  };
-  
-  return mapping[periodDuration];
-}
-
-/**
- * Calculate age from date of birth
- */
-function calculateAge(dateOfBirth: string | undefined | null): number | undefined {
-  if (!dateOfBirth) return undefined;
-  
-  try {
-    const birthDate = new Date(dateOfBirth);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    
-    return age > 0 && age < 120 ? age : undefined;
-  } catch (error) {
-    console.error('Error calculating age:', error);
-    return undefined;
-  }
-}
-
-/**
- * Clean payload - remove undefined/null values and transform enums to numbers
- * IMPORTANT: Backend requires averageCycleLength and periodDuration as numbers
- */
-function cleanOnboardingPayload(data: Partial<OnboardingData>): any {
+function cleanPayload(data: any): any {
   const cleaned: any = {};
   
-  // Transform and map fields
-  if (data.dateOfBirth) {
-    cleaned.dateOfBirth = data.dateOfBirth;
-    // Calculate age from date of birth
-    const age = calculateAge(data.dateOfBirth);
-    if (age !== undefined) {
-      cleaned.age = age;
-    }
-  }
-  
-  // REQUIRED: Map cycleLength to averageCycleLength (backend expects this as a number)
-  // If cycleLength enum is provided, convert it to number
-  // Otherwise, use default of 28 (average cycle length)
-  let averageCycleLength: number | undefined;
-  if (data.cycleLength) {
-    averageCycleLength = cycleLengthToNumber(data.cycleLength);
-  }
-  
-  // If we still don't have a number, check if averageCycleLength was directly provided
-  if (averageCycleLength === undefined && typeof data.averageCycleLength === 'number') {
-    averageCycleLength = data.averageCycleLength;
-  }
-  
-  // Always include averageCycleLength - default to 28 if not provided
-  cleaned.averageCycleLength = averageCycleLength ?? 28;
-  
-  // Keep enum for reference (optional)
-  if (data.cycleLength) {
-    cleaned.cycleLength = data.cycleLength;
-  }
-  
-  // REQUIRED: Map periodDuration to numeric value (backend expects numeric, not enum string)
-  // If periodDuration enum is provided, convert it to number
-  // Otherwise, use default of 5 (average period duration)
-  let periodDuration: number | undefined;
-  if (data.periodDuration) {
-    periodDuration = periodDurationToNumber(data.periodDuration);
-  }
-  
-  // Always include periodDuration - default to 5 if not provided
-  cleaned.periodDuration = periodDuration ?? 5;
-  
-  // Keep all other fields that are not undefined/null
-  const fieldsToKeep: (keyof OnboardingData)[] = [
-    'weightRange',
-    'heightRange',
-    'reproductiveStage',
-    'healthGoal',
-    'birthControl',
-    'medicalDiagnoses',
-    'physicalSymptoms',
-    'pmsMood',
-    'stressLevel',
-    'foodStruggles',
-    'dietaryLifestyle',
-  ];
-  
-  fieldsToKeep.forEach((field) => {
-    const value = data[field];
-    if (value !== undefined && value !== null) {
-      // For arrays, only include if not empty
-      if (Array.isArray(value)) {
-        if (value.length > 0) {
-          cleaned[field] = value;
-        }
-      } else if (value !== '' && value !== null) {
-        // Only include non-empty string values
-        cleaned[field] = value;
-      }
-    }
-  });
-  
-  // Final cleanup: remove any undefined values that might have slipped through
-  // BUT keep required numeric fields even if they're the defaults
-  const finalCleaned: any = {};
-  Object.keys(cleaned).forEach((key) => {
-    const value = cleaned[key];
+  Object.keys(data).forEach((key) => {
+    const value = data[key];
     
-    // Always keep required numeric fields
-    if (key === 'averageCycleLength' || key === 'periodDuration') {
-      finalCleaned[key] = value;
+    // Skip undefined and null
+    if (value === undefined || value === null) {
       return;
     }
     
-    if (value !== undefined && value !== null) {
-      if (Array.isArray(value)) {
-        if (value.length > 0) {
-          finalCleaned[key] = value;
-        }
-      } else {
-        finalCleaned[key] = value;
+    // For arrays, only include if not empty
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        cleaned[key] = value;
       }
+    } else if (typeof value === 'string' && value.trim() === '') {
+      // Skip empty strings
+      return;
+    } else {
+      cleaned[key] = value;
     }
   });
   
-  // Validate required fields are present
-  if (typeof finalCleaned.averageCycleLength !== 'number') {
-    console.warn('⚠️ [cleanOnboardingPayload] averageCycleLength is missing or invalid, using default: 28');
-    finalCleaned.averageCycleLength = 28;
-  }
-  
-  if (typeof finalCleaned.periodDuration !== 'number') {
-    console.warn('⚠️ [cleanOnboardingPayload] periodDuration is missing or invalid, using default: 5');
-    finalCleaned.periodDuration = 5;
-  }
-  
-  if (__DEV__) {
-    console.log('📦 [cleanOnboardingPayload] Final cleaned payload:', {
-      averageCycleLength: finalCleaned.averageCycleLength,
-      periodDuration: finalCleaned.periodDuration,
-      hasDateOfBirth: !!finalCleaned.dateOfBirth,
-      hasAge: typeof finalCleaned.age === 'number',
-    });
-  }
-  
-  return finalCleaned;
+  return cleaned;
 }
 
 class OnboardingService {
+  // ============================================================================
+  // BASIC ONBOARDING ENDPOINTS
+  // ============================================================================
+
   /**
-   * Save onboarding data to backend
+   * Save basic onboarding data to backend
+   * POST /api/onboarding
    */
-  async saveOnboardingData(data: Partial<OnboardingData>): Promise<OnboardingResponse> {
+  async saveBasicOnboarding(data: Partial<BasicOnboardingData>): Promise<OnboardingResponse> {
     try {
-      // Validate required fields before cleaning
-      if (__DEV__) {
-        console.log('🔍 [OnboardingService] Raw data before cleaning:', {
-          hasCycleLength: !!data.cycleLength,
-          cycleLength: data.cycleLength,
-          hasPeriodDuration: !!data.periodDuration,
-          periodDuration: data.periodDuration,
-          hasAverageCycleLength: typeof data.averageCycleLength === 'number',
-          averageCycleLength: data.averageCycleLength,
-        });
+      // Ensure required fields have defaults
+      const payload: any = {
+        ...data,
+        averageCycleLength: data.averageCycleLength ?? 28,
+        periodDuration: data.periodDuration ?? 5,
+      };
+      
+      // Validate required fields
+      if (typeof payload.averageCycleLength !== 'number' || 
+          payload.averageCycleLength < 21 || 
+          payload.averageCycleLength > 40) {
+        throw new Error('averageCycleLength must be a number between 21 and 40');
       }
       
-      // Clean and transform the payload
-      const cleanedPayload = cleanOnboardingPayload(data);
-      
-      // Validate required numeric fields are present
-      if (typeof cleanedPayload.averageCycleLength !== 'number') {
-        throw new Error('averageCycleLength is required and must be a number');
+      if (typeof payload.periodDuration !== 'number' || 
+          payload.periodDuration < 1 || 
+          payload.periodDuration > 7) {
+        throw new Error('periodDuration must be a number between 1 and 7');
       }
       
-      if (typeof cleanedPayload.periodDuration !== 'number') {
-        throw new Error('periodDuration is required and must be a number');
-      }
+      const cleanedPayload = cleanPayload(payload);
       
       log('📤 [OnboardingService] POST /onboarding');
-      log('📦 Cleaned Payload:', cleanedPayload);
-      log('📋 Required Fields Check:', {
-        averageCycleLength: cleanedPayload.averageCycleLength,
-        periodDuration: cleanedPayload.periodDuration,
-        bothPresent: typeof cleanedPayload.averageCycleLength === 'number' && typeof cleanedPayload.periodDuration === 'number',
-      });
+      log('📦 Payload:', cleanedPayload);
       log('🔗 API Base URL:', api.defaults.baseURL);
+      log('📋 Payload validation:', {
+        hasAverageCycleLength: typeof cleanedPayload.averageCycleLength === 'number',
+        averageCycleLength: cleanedPayload.averageCycleLength,
+        hasPeriodDuration: typeof cleanedPayload.periodDuration === 'number',
+        periodDuration: cleanedPayload.periodDuration,
+        payloadKeys: Object.keys(cleanedPayload),
+      });
       
       const response = await api.post('/onboarding', cleanedPayload);
       
       log('✅ [OnboardingService] Response received:', {
         status: response.status,
+        data: response.data,
+      });
+      
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+        message: response.data?.message,
+      };
+    } catch (error: any) {
+      logError('❌ [OnboardingService] Failed to save basic onboarding', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get basic onboarding data from backend
+   * GET /api/onboarding
+   */
+  async getBasicOnboarding(): Promise<OnboardingResponse> {
+    try {
+      const response = await api.get('/onboarding');
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+        message: response.data?.message,
+      };
+    } catch (error: any) {
+      logError('❌ [OnboardingService] Failed to get basic onboarding', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update specific fields in basic onboarding
+   * PATCH /api/onboarding
+   */
+  async updateBasicOnboarding(data: Partial<BasicOnboardingData>): Promise<OnboardingResponse> {
+    try {
+      const cleanedPayload = cleanPayload(data);
+      
+      log('📤 [OnboardingService] PATCH /onboarding');
+      log('📦 Payload:', cleanedPayload);
+      
+      const response = await api.patch('/onboarding', cleanedPayload);
+      
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+        message: response.data?.message,
+      };
+    } catch (error: any) {
+      logError('❌ [OnboardingService] Failed to update basic onboarding', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Complete basic onboarding
+   * POST /api/onboarding/complete
+   */
+  async completeBasicOnboarding(): Promise<OnboardingResponse> {
+    try {
+      log('📤 [OnboardingService] POST /onboarding/complete');
+      log('🔗 API Base URL:', api.defaults.baseURL);
+      
+      const response = await api.post('/onboarding/complete');
+      
+      log('✅ [OnboardingService] Complete response:', {
+        status: response.status,
         statusText: response.statusText,
         data: response.data,
+        headers: response.headers,
       });
       
       return {
@@ -304,45 +218,38 @@ class OnboardingService {
           url: error?.config?.url,
           method: error?.config?.method,
           baseURL: error?.config?.baseURL,
-          data: error?.config?.data ? JSON.parse(error?.config?.data) : null,
         },
       };
       
-      logError('❌ [OnboardingService] Failed to save data', error);
-      log('🔍 [OnboardingService] Full error details:', errorDetails);
-      
+      logError('❌ [OnboardingService] Failed to complete basic onboarding', error);
+      log('🔍 [OnboardingService] Complete error details:', errorDetails);
       throw error;
     }
   }
 
-  /**
-   * Get onboarding data from backend
-   */
-  async getOnboardingData(): Promise<OnboardingResponse> {
-    try {
-      const response = await api.get('/onboarding');
-      return {
-        success: true,
-        data: response.data?.data || response.data,
-        message: response.data?.message,
-      };
-    } catch (error: any) {
-      console.error('❌ [OnboardingService] Failed to get data:', error);
-      throw error;
-    }
-  }
+  // ============================================================================
+  // ONBOARDING QUESTIONS ENDPOINTS
+  // ============================================================================
 
   /**
-   * Complete onboarding process
+   * Save onboarding questions to backend
+   * POST /api/onboarding/questions
    */
-  async completeOnboarding(): Promise<OnboardingResponse> {
+  async saveOnboardingQuestions(data: Partial<OnboardingQuestionsData>): Promise<OnboardingResponse> {
     try {
-      log('📤 [OnboardingService] POST /onboarding/complete');
-      log('🔗 API Base URL:', api.defaults.baseURL);
+      // Validate physicalSymptoms max 3
+      if (data.physicalSymptoms && data.physicalSymptoms.length > 3) {
+        throw new Error('physicalSymptoms cannot have more than 3 items');
+      }
       
-      const response = await api.post('/onboarding/complete');
+      const cleanedPayload = cleanPayload(data);
       
-      log('✅ [OnboardingService] Complete response:', {
+      log('📤 [OnboardingService] POST /onboarding/questions');
+      log('📦 Payload:', cleanedPayload);
+      
+      const response = await api.post('/onboarding/questions', cleanedPayload);
+      
+      log('✅ [OnboardingService] Response received:', {
         status: response.status,
         data: response.data,
       });
@@ -353,49 +260,80 @@ class OnboardingService {
         message: response.data?.message,
       };
     } catch (error: any) {
-      const errorDetails = {
-        message: error?.message,
-        response: {
-          status: error?.response?.status,
-          data: error?.response?.data,
-        },
-        request: {
-          url: error?.config?.url,
-          method: error?.config?.method,
-        },
-      };
-      
-      logError('❌ [OnboardingService] Failed to complete onboarding', error);
-      log('🔍 [OnboardingService] Complete error details:', errorDetails);
-      
+      logError('❌ [OnboardingService] Failed to save onboarding questions', error);
       throw error;
     }
   }
 
   /**
-   * Update specific field in onboarding data
+   * Get onboarding questions from backend
+   * GET /api/onboarding/questions
    */
-  async updateOnboardingField(
-    field: keyof OnboardingData,
-    value: any
-  ): Promise<OnboardingResponse> {
+  async getOnboardingQuestions(): Promise<OnboardingResponse> {
     try {
-      // If updating cycleLength or periodDuration, transform to number
-      let cleanedValue = value;
-      if (field === 'cycleLength') {
-        cleanedValue = cycleLengthToNumber(value) ?? value;
-      } else if (field === 'periodDuration') {
-        cleanedValue = periodDurationToNumber(value) ?? value;
-      }
-      
-      const response = await api.patch('/onboarding', { [field]: cleanedValue });
+      const response = await api.get('/onboarding/questions');
       return {
         success: true,
         data: response.data?.data || response.data,
         message: response.data?.message,
       };
     } catch (error: any) {
-      console.error('❌ [OnboardingService] Failed to update field:', error);
+      logError('❌ [OnboardingService] Failed to get onboarding questions', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update specific fields in onboarding questions
+   * PATCH /api/onboarding/questions
+   */
+  async updateOnboardingQuestions(data: Partial<OnboardingQuestionsData>): Promise<OnboardingResponse> {
+    try {
+      // Validate physicalSymptoms max 3
+      if (data.physicalSymptoms && data.physicalSymptoms.length > 3) {
+        throw new Error('physicalSymptoms cannot have more than 3 items');
+      }
+      
+      const cleanedPayload = cleanPayload(data);
+      
+      log('📤 [OnboardingService] PATCH /onboarding/questions');
+      log('📦 Payload:', cleanedPayload);
+      
+      const response = await api.patch('/onboarding/questions', cleanedPayload);
+      
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+        message: response.data?.message,
+      };
+    } catch (error: any) {
+      logError('❌ [OnboardingService] Failed to update onboarding questions', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Complete onboarding questions
+   * POST /api/onboarding/questions/complete
+   */
+  async completeOnboardingQuestions(): Promise<OnboardingResponse> {
+    try {
+      log('📤 [OnboardingService] POST /onboarding/questions/complete');
+      
+      const response = await api.post('/onboarding/questions/complete');
+      
+      log('✅ [OnboardingService] Questions complete response:', {
+        status: response.status,
+        data: response.data,
+      });
+      
+      return {
+        success: true,
+        data: response.data?.data || response.data,
+        message: response.data?.message,
+      };
+    } catch (error: any) {
+      logError('❌ [OnboardingService] Failed to complete onboarding questions', error);
       throw error;
     }
   }

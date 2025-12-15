@@ -40,11 +40,11 @@ const LoginScreen = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (status === 'succeeded' && user) {
+    if (status === 'succeeded' && user?.id) {
       dispatch(clearAuthError());
       router.replace('/(tabs)/home'); // your redirect
     }
-  }, [status, user]);
+  }, [status, user?.id]);
 
   const validateEmail = (email: string) => {
     if (!email) return 'Email is required';
@@ -60,6 +60,11 @@ const LoginScreen = () => {
   };
 
   const handleSubmit = async () => {
+    // Prevent duplicate submissions
+    if (isSubmitting || status === 'loading') {
+      return;
+    }
+
     const emailErr = validateEmail(email);
     const passwordErr = validatePassword(password);
 

@@ -16,7 +16,7 @@ export default function ExerciseScreen() {
   const { theme, accentColor } = useTheme();
   const { state: workoutState, dispatch } = useWorkout();
   const router = useRouter();
-  
+
   const { width, height } = Dimensions.get('window');
   const dynamicStyles = useMemo(() => createStyles(theme, accentColor, width, height), [theme, accentColor, width, height]);
 
@@ -154,16 +154,16 @@ export default function ExerciseScreen() {
             <Text style={[dynamicStyles.subtitle, { color: theme.textSecondary }]}>Track your workouts and progress</Text>
           </View>
           <View style={dynamicStyles.imageContainer}>
-            <LinearGradient 
-              colors={[`${accentColor}80`, accentColor]} 
-              style={{ 
-                backgroundColor: `${accentColor}20`, 
-                height: 120, 
-                width: 120, 
-                borderRadius: 100, 
-                position: 'absolute', 
-                bottom: 12, 
-                right: 20, 
+            <LinearGradient
+              colors={[`${accentColor}80`, accentColor]}
+              style={{
+                backgroundColor: `${accentColor}20`,
+                height: 120,
+                width: 120,
+                borderRadius: 100,
+                position: 'absolute',
+                bottom: 12,
+                right: 20,
               }}
             />
             <Image
@@ -176,7 +176,7 @@ export default function ExerciseScreen() {
       </LinearGradient>
 
       {/* Workout Stats */}
-      <View style={[dynamicStyles.summaryCard, { 
+      <View style={[dynamicStyles.summaryCard, {
         backgroundColor: theme.cardBackground,
         shadowColor: accentColor,
       }]}>
@@ -208,7 +208,7 @@ export default function ExerciseScreen() {
       {workoutState.isWorkoutActive && (
         <View style={dynamicStyles.section}>
           <TouchableOpacity
-            style={[dynamicStyles.activeWorkoutButton, { 
+            style={[dynamicStyles.activeWorkoutButton, {
               backgroundColor: accentColor,
               shadowColor: accentColor,
             }]}
@@ -227,6 +227,70 @@ export default function ExerciseScreen() {
         </View>
       )}
 
+
+      <View style={{ flexDirection: 'row', marginBottom: 20, paddingHorizontal: 12 }}>
+        {/* SHADOW WRAPPER - produces shadow (no overflow) */}
+        <View
+          style={{
+            flex: 1,
+            marginHorizontal: 8,
+            borderRadius: 16,
+            // iOS shadow
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.12,
+            shadowRadius: 10,
+            // Android elevation
+            elevation: 6,
+            backgroundColor: 'transparent' // keep wrapper transparent
+          }}
+        >
+          {/* INNER CARD - handles rounded corners & clipping */}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={{
+              height: 160,
+              borderRadius: 16,
+              overflow: 'hidden',     // keeps image clipped to rounded corners
+              backgroundColor: '#f9f9f9' // visible while image loads
+            }}
+          >
+            <Image
+              source={{
+                uri: 'https://img.freepik.com/free-photo/sporty-young-woman-doing-yoga-practice-isolated-white-surface-concept-healthy-life-natural-balance-body-mental-development_231208-12535.jpg?w=740&q=80'
+              }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 40,
+                width: '100%',
+                height: '100%',
+                resizeMode: 'cover'
+              }}
+            />
+
+            {/* Text overlay with small translucent gradient for contrast */}
+            <View style={{
+              position: 'absolute',
+              left: 14,
+              top: 10,
+              width: '50%',
+              // subtle backdrop for readability (works cross-platform)
+
+              padding: 10,
+              borderRadius: 8
+            }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: 'black' }}>
+                Top Pregnancy Exercises
+              </Text>
+
+              <Text style={{ fontSize: 13, color: '#737373', marginTop: 6 }}>
+                Improve flexibility and calm your mind.
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
       {/* Quick Start */}
       <View style={dynamicStyles.section}>
         <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Quick Start</Text>
@@ -239,11 +303,11 @@ export default function ExerciseScreen() {
         </TouchableOpacity>
 
         <View style={dynamicStyles.quickRow}>
-          <TouchableOpacity 
-            style={[dynamicStyles.secondaryButton, { 
+          <TouchableOpacity
+            style={[dynamicStyles.secondaryButton, {
               borderColor: theme.border,
               backgroundColor: theme.primarySoft,
-            }]} 
+            }]}
             onPress={() => setShowLibrary(true)}
           >
             <Dumbbell size={20} color={accentColor} />
@@ -255,28 +319,46 @@ export default function ExerciseScreen() {
       {/* Workout Templates */}
       <View style={dynamicStyles.section}>
         <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Workout Templates</Text>
-        {workoutTemplates.map((template) => (
-          <TouchableOpacity
-            key={template.id}
-            style={[dynamicStyles.templateCard, { 
-              backgroundColor: theme.cardBackground,
-              shadowColor: accentColor,
-            }]}
-            onPress={() => startWorkout(template)}
-          >
-            <View style={dynamicStyles.templateHeader}>
-              <Text style={[dynamicStyles.templateName, { color: theme.textPrimary }]}>{template.name}</Text>
-              <View style={[dynamicStyles.difficultyBadge, getDifficultyBadgeStyle(template.difficulty)]}>
-                <Text style={dynamicStyles.difficultyText}>{template.difficulty}</Text>
+        <View style={dynamicStyles.templatesGrid}>
+          {workoutTemplates.map((template, index) => (
+            <TouchableOpacity
+              key={template.id}
+              style={[
+                dynamicStyles.templateCard,
+                {
+                  backgroundColor: theme.cardBackground,
+                  shadowColor: accentColor,
+                  width: (width - 52) / 2, // 20px margin * 2 + 12px gap = 52
+                  marginRight: index % 2 === 0 ? 12 : 0,
+                  marginBottom: 12, // Add gap only between items in same row
+                }
+              ]}
+              onPress={() => startWorkout(template)}
+            >
+              <View style={dynamicStyles.templateHeader}>
+                <Text
+                  style={[dynamicStyles.templateName, { color: theme.textPrimary }]}
+                  numberOfLines={2}
+                >
+                  {template.name}
+                </Text>
+                <View style={[dynamicStyles.difficultyBadge, getDifficultyBadgeStyle(template.difficulty)]}>
+                  <Text style={dynamicStyles.difficultyText}>{template.difficulty}</Text>
+                </View>
               </View>
-            </View>
-            <Text style={[dynamicStyles.templateDescription, { color: theme.textSecondary }]}>{template.description}</Text>
-            <View style={dynamicStyles.templateStats}>
-              <Text style={[dynamicStyles.templateStat, { color: theme.textSecondary }]}>⏱️ {template.estimatedDuration} min</Text>
-              <Text style={[dynamicStyles.templateStat, { color: theme.textSecondary }]}>💪 {template.exercises.length} exercises</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[dynamicStyles.templateDescription, { color: theme.textSecondary }]}
+                numberOfLines={2}
+              >
+                {template.description}
+              </Text>
+              <View style={dynamicStyles.templateStats}>
+                <Text style={[dynamicStyles.templateStat, { color: theme.textSecondary }]}>⏱️ {template.estimatedDuration}m</Text>
+                <Text style={[dynamicStyles.templateStat, { color: theme.textSecondary }]}>💪 {template.exercises.length}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Recent Workouts */}
@@ -284,7 +366,7 @@ export default function ExerciseScreen() {
         <View style={dynamicStyles.section}>
           <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Recent Workouts</Text>
           {workoutState.sessions.slice(-5).reverse().map((session) => (
-            <View key={session.id} style={[dynamicStyles.sessionCard, { 
+            <View key={session.id} style={[dynamicStyles.sessionCard, {
               backgroundColor: theme.primarySoft,
               borderLeftColor: '#10b981',
             }]}>
@@ -345,7 +427,7 @@ export default function ExerciseScreen() {
         onRequestClose={() => setShowActiveWorkout(false)}
       >
         <View style={[dynamicStyles.workoutContainer, { backgroundColor: theme.background }]}>
-          <View style={[dynamicStyles.workoutHeader, { 
+          <View style={[dynamicStyles.workoutHeader, {
             backgroundColor: theme.cardBackground,
             borderBottomColor: theme.border,
           }]}>
@@ -362,7 +444,7 @@ export default function ExerciseScreen() {
 
           <ScrollView style={dynamicStyles.workoutContent}>
             {workoutState.currentSession?.exercises.map((exercise, exerciseIndex) => (
-              <View key={exercise.id} style={[dynamicStyles.exerciseContainer, { 
+              <View key={exercise.id} style={[dynamicStyles.exerciseContainer, {
                 backgroundColor: theme.cardBackground,
                 shadowColor: accentColor,
               }]}>
@@ -370,8 +452,8 @@ export default function ExerciseScreen() {
                   <TouchableOpacity onPress={() => openExerciseDetails(exercise.exerciseId)} style={{ flex: 1 }}>
                     <Text style={[dynamicStyles.exerciseName, { color: theme.textPrimary }]}>{exercise.exercise.name}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    onPress={() => openExerciseDetails(exercise.exerciseId)} 
+                  <TouchableOpacity
+                    onPress={() => openExerciseDetails(exercise.exerciseId)}
                     style={[dynamicStyles.infoButton, { backgroundColor: theme.primarySoft }]}
                   >
                     <Info size={18} color={theme.textSecondary} />
@@ -399,8 +481,8 @@ export default function ExerciseScreen() {
                       {editingSet?.exerciseId === exercise.id && editingSet?.setId === set.id ? (
                         <>
                           <TextInput
-                            style={[dynamicStyles.setInput, { 
-                              borderColor: theme.border, 
+                            style={[dynamicStyles.setInput, {
+                              borderColor: theme.border,
                               color: theme.textPrimary,
                               backgroundColor: theme.cardBackground,
                             }]}
@@ -411,8 +493,8 @@ export default function ExerciseScreen() {
                             placeholderTextColor={theme.textSecondary}
                           />
                           <TextInput
-                            style={[dynamicStyles.setInput, { 
-                              borderColor: theme.border, 
+                            style={[dynamicStyles.setInput, {
+                              borderColor: theme.border,
                               color: theme.textPrimary,
                               backgroundColor: theme.cardBackground,
                             }]}
@@ -448,7 +530,7 @@ export default function ExerciseScreen() {
                           <TouchableOpacity
                             style={[
                               dynamicStyles.checkButton,
-                              { 
+                              {
                                 backgroundColor: theme.primarySoft,
                                 borderColor: theme.border,
                               },
@@ -501,7 +583,7 @@ export default function ExerciseScreen() {
         onRequestClose={() => setShowExerciseModal(false)}
       >
         <View style={[dynamicStyles.mediaModalContainer, { backgroundColor: theme.background }]}>
-          <View style={[dynamicStyles.mediaModalHeader, { 
+          <View style={[dynamicStyles.mediaModalHeader, {
             backgroundColor: theme.cardBackground,
             borderBottomColor: theme.border,
           }]}>
@@ -549,10 +631,10 @@ export default function ExerciseScreen() {
 
             <View style={dynamicStyles.mediaSection}>
               <Text style={[dynamicStyles.mediaSectionTitle, { color: theme.textPrimary }]}>Coaching Cues</Text>
-              {(selectedExerciseId && exerciseById[selectedExerciseId]?.cues 
+              {(selectedExerciseId && exerciseById[selectedExerciseId]?.cues
                 ? exerciseById[selectedExerciseId]!.cues.map((cue: string, idx: number) => (
-                    <Text key={idx} style={[dynamicStyles.mediaCue, { color: theme.textSecondary }]}>• {cue}</Text>
-                  ))
+                  <Text key={idx} style={[dynamicStyles.mediaCue, { color: theme.textSecondary }]}>• {cue}</Text>
+                ))
                 : null)}
             </View>
           </ScrollView>
@@ -566,7 +648,7 @@ export default function ExerciseScreen() {
         onRequestClose={() => setShowLibrary(false)}
       >
         <View style={[dynamicStyles.libraryContainer, { backgroundColor: theme.background }]}>
-          <View style={[dynamicStyles.mediaModalHeader, { 
+          <View style={[dynamicStyles.mediaModalHeader, {
             backgroundColor: theme.cardBackground,
             borderBottomColor: theme.border,
           }]}>
@@ -581,9 +663,9 @@ export default function ExerciseScreen() {
               <View key={category} style={dynamicStyles.librarySection}>
                 <Text style={[dynamicStyles.librarySectionTitle, { color: theme.textPrimary }]}>{category.toUpperCase()}</Text>
                 {list.map((ex) => (
-                  <TouchableOpacity 
-                    key={ex.id} 
-                    style={[dynamicStyles.libraryItem, { borderBottomColor: theme.border }]} 
+                  <TouchableOpacity
+                    key={ex.id}
+                    style={[dynamicStyles.libraryItem, { borderBottomColor: theme.border }]}
                     onPress={() => openExerciseDetails(ex.id)}
                   >
                     <View style={[dynamicStyles.libraryThumb, { backgroundColor: theme.primarySoft }]}>
@@ -762,30 +844,34 @@ const createStyles = (theme: any, accentColor: string, width: number, height: nu
     fontSize: 14,
     fontWeight: '700',
   },
+  templatesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
   templateCard: {
-    padding: 16,
+    padding: 14,
     borderRadius: 16,
-    marginBottom: 12,
     elevation: 2,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    minHeight: 140,
   },
   templateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
     marginBottom: 8,
+    gap: 6,
   },
   templateName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    flex: 1,
+    lineHeight: 20,
   },
   difficultyBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    width: 80,
   },
   difficultyBeginner: {
     backgroundColor: '#dcfce7',
@@ -802,16 +888,20 @@ const createStyles = (theme: any, accentColor: string, width: number, height: nu
     color: '#374151',
   },
   templateDescription: {
-    fontSize: 14,
-    marginBottom: 12,
-    lineHeight: 20,
+    fontSize: 12,
+    marginBottom: 10,
+    lineHeight: 16,
+    flex: 1,
   },
   templateStats: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 8,
+    marginTop: 'auto',
+    flexWrap: 'wrap',
   },
   templateStat: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '500',
   },
   sessionCard: {
     padding: 16,

@@ -31,7 +31,7 @@ export default function InitialLayout() {
     const isOnLogin = currentPath.includes('login');
     const isOnSignup = currentPath.includes('signup');
     const isOnForgotPassword = currentPath.includes('forgot-password');
-    const isOnOnboarding = currentPath.includes('onboarding');
+    const isOnOnboarding = currentPath.includes('onboarding-basic') || currentPath.includes('onboarding-questions');
     const isOnTabs = currentPath.includes('tabs') || currentPath === '/' || currentPath === '';
 
     // Determine the correct route based on auth state
@@ -43,8 +43,8 @@ export default function InitialLayout() {
       targetRoute = '/(pages)/login';
       shouldNavigate = !isOnLogin && !isOnSignup && !isOnForgotPassword;
     } else if (!onboardingCompleted) {
-      // Authenticated but onboarding not completed
-      targetRoute = '/(pages)/onboarding';
+      // Authenticated but onboarding not completed - start with basic onboarding
+      targetRoute = '/(pages)/onboarding-basic';
       shouldNavigate = !isOnOnboarding;
     } else {
       // Authenticated and onboarded - go to main app
@@ -96,7 +96,8 @@ export default function InitialLayout() {
       <Stack.Screen name="(pages)/login" options={{ headerShown: false }} />
       <Stack.Screen name="(pages)/signup" options={{ headerShown: false }} />
       <Stack.Screen name="(pages)/forgot-password" options={{ headerShown: false }} />
-      <Stack.Screen name="(pages)/onboarding" options={{ headerShown: false }} />
+      <Stack.Screen name="(pages)/onboarding-basic" options={{ headerShown: false }} />
+      <Stack.Screen name="(pages)/onboarding-questions" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>

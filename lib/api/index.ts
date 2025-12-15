@@ -140,8 +140,27 @@ api.interceptors.response.use(
     }
     const originalRequest = error.config;
 
+    // List of auth endpoints that should NOT trigger token refresh
+    // These endpoints return 401 for invalid credentials, not expired tokens
+    const authEndpoints = [
+      '/auth/login',
+      '/auth/signup',
+      '/auth/register',
+      '/auth/signin',
+      '/auth/signout',
+      '/auth/logout',
+      '/auth/password',
+      '/auth/reset-password',
+      '/auth/forgot-password',
+      '/token/refresh', // Don't refresh when refresh endpoint fails
+    ];
+    
+    const requestUrl = originalRequest?.url || '';
+    const isAuthEndpoint = authEndpoints.some(endpoint => requestUrl.includes(endpoint));
+
     // If unauthorized and not already refreshing → refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // BUT skip refresh for auth endpoints (they return 401 for invalid credentials)
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -159,7 +178,16 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = await getRefreshToken();
-        if (!refreshToken) throw new Error("Missing refresh token");
+        
+        // If no refresh token, clear tokens and reject - user needs to log in again
+        if (!refreshToken) {
+          if (__DEV__) {
+            log('⚠️ [Token Refresh] No refresh token found, clearing tokens and redirecting to login');
+          }
+          await removeTokens();
+          processQueue(new Error("Session expired. Please log in again."), null);
+          return Promise.reject(new Error("Session expired. Please log in again."));
+        }
 
         const { data } = await axios.post(`${API_BASE_URL}/token/refresh`, {
           refresh_token: refreshToken,
@@ -174,10 +202,20 @@ api.interceptors.response.use(
         processQueue(null, newAccess);
 
         return api(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
+      } catch (err: any) {
+        // If refresh fails (invalid token, network error, etc.), clear tokens
+        if (__DEV__) {
+          log('❌ [Token Refresh] Failed:', err?.response?.data || err?.message);
+        }
         await removeTokens();
-        return Promise.reject(err);
+        
+        // Create a user-friendly error message
+        const errorMessage = err?.response?.data?.message || 
+                           err?.message || 
+                           "Session expired. Please log in again.";
+        
+        processQueue(new Error(errorMessage), null);
+        return Promise.reject(new Error(errorMessage));
       } finally {
         isRefreshing = false;
       }

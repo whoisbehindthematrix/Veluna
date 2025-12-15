@@ -1,39 +1,10 @@
 /**
- * Comprehensive Onboarding Screen
+ * Onboarding Questions Screen
  * 
- * One question at a time survey flow
+ * Optional survey questions - user can skip
  */
 
 import React, { useEffect, useCallback, useState, useMemo } from 'react';
-
-// Reactotron logging (only in dev)
-let Reactotron: any = null;
-if (__DEV__) {
-  try {
-    Reactotron = require('reactotron-react-native').default;
-  } catch (e) {
-    // Reactotron not available
-  }
-}
-
-const log = (...args: any[]) => {
-  if (__DEV__ && Reactotron) {
-    Reactotron.log(...args);
-  }
-  console.log(...args);
-};
-
-const logError = (message: string, error: any) => {
-  if (__DEV__ && Reactotron) {
-    Reactotron.error(message, error);
-    Reactotron.display({
-      name: '❌ Onboarding Error',
-      preview: message,
-      value: error,
-    });
-  }
-  console.error(message, error);
-};
 import {
   View,
   Text,
@@ -50,24 +21,19 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/src/store';
 import {
   updateField,
-  completeOnboarding,
-  saveOnboardingData,
+  saveOnboardingQuestions,
+  completeOnboardingQuestions,
   type OnboardingData,
 } from '@/src/store/slices/onboardingSlice';
 import { setOnboardingCompleted, syncUser } from '@/src/store/slices/authSlice';
 import AppText from '@/components/core-components/AppText';
 import QuestionSection from '@/components/onboarding/QuestionSection';
-import DatePickerQuestion from '@/components/onboarding/DatePickerQuestion';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/src/context/ThemeContext';
 import {
-  WEIGHT_RANGES,
-  HEIGHT_RANGES,
   REPRODUCTIVE_STAGES,
   HEALTH_GOALS,
   BIRTH_CONTROL_OPTIONS,
-  CYCLE_LENGTHS,
-  PERIOD_DURATIONS,
   MEDICAL_DIAGNOSES,
   PHYSICAL_SYMPTOMS,
   PMS_MOODS,
@@ -76,187 +42,134 @@ import {
   DIETARY_LIFESTYLES,
 } from '@/data/onboardingQuestions';
 
-// Define all questions in order
+// Onboarding questions (optional)
 interface QuestionConfig {
   id: number;
-  type: 'date' | 'single' | 'multi';
+  type: 'single' | 'multi';
   field: string;
   title: string;
   subtitle?: string;
   options?: any[];
   multiSelect?: boolean;
   maxSelections?: number;
-  required?: boolean;
 }
 
 const QUESTIONS: QuestionConfig[] = [
-  // Section 1: Baseline Profile
   {
     id: 1,
-    type: 'date',
-    field: 'dateOfBirth',
-    title: '1. Which age bracket do you fall into?',
-    subtitle: 'Date of birth',
-    required: false,
+    type: 'single',
+    field: 'reproductiveStage',
+    title: '1. What best describes your current reproductive stage?',
+    options: REPRODUCTIVE_STAGES,
   },
   {
     id: 2,
     type: 'single',
-    field: 'weightRange',
-    title: '2. What is your current weight?',
-    options: WEIGHT_RANGES,
-    required: false,
+    field: 'healthGoal',
+    title: '2. What is your primary health goal right now?',
+    options: HEALTH_GOALS,
   },
   {
     id: 3,
-    type: 'single',
-    field: 'heightRange',
-    title: '3. What is your height?',
-    options: HEIGHT_RANGES,
-    required: false,
-  },
-  {
-    id: 4,
-    type: 'single',
-    field: 'reproductiveStage',
-    title: '4. What best describes your current reproductive stage?',
-    options: REPRODUCTIVE_STAGES,
-    required: false,
-  },
-  {
-    id: 5,
-    type: 'single',
-    field: 'healthGoal',
-    title: '5. What is your primary health goal right now?',
-    options: HEALTH_GOALS,
-    required: false,
-  },
-  // Section 2: Cycle Details
-  {
-    id: 6,
     type: 'multi',
     field: 'birthControl',
-    title: '6. Are you currently using birth control?',
+    title: '3. Are you currently using birth control?',
     subtitle: 'Multi-select - This is crucial as hormonal BC overrides natural cycles',
     options: BIRTH_CONTROL_OPTIONS,
     multiSelect: true,
-    required: false,
   },
   {
-    id: 7,
-    type: 'single',
-    field: 'cycleLength',
-    title: '7. What is your average Cycle Length?',
-    subtitle: 'Count from Day 1 of period to Day 1 of the next',
-    options: CYCLE_LENGTHS,
-    required: true,
-  },
-  {
-    id: 8,
-    type: 'single',
-    field: 'periodDuration',
-    title: '8. How long does your period usually last?',
-    options: PERIOD_DURATIONS,
-    required: true,
-  },
-  // Section 3: Hormonal & Physical Symptoms
-  {
-    id: 9,
+    id: 4,
     type: 'multi',
     field: 'medicalDiagnoses',
-    title: '9. Have you been medically diagnosed with any of the following?',
+    title: '4. Have you been medically diagnosed with any of the following?',
     options: MEDICAL_DIAGNOSES,
     multiSelect: true,
-    required: false,
   },
   {
-    id: 10,
+    id: 5,
     type: 'multi',
     field: 'physicalSymptoms',
-    title: '10. Which physical symptoms bother you the most?',
+    title: '5. Which physical symptoms bother you the most?',
     subtitle: 'Select up to 3',
     options: PHYSICAL_SYMPTOMS,
     multiSelect: true,
     maxSelections: 3,
-    required: false,
   },
-  // Section 4: Mood & Mindset
   {
-    id: 11,
+    id: 6,
     type: 'single',
     field: 'pmsMood',
-    title: '11. How does your mood change before your period (PMS)?',
+    title: '6. How does your mood change before your period (PMS)?',
     options: PMS_MOODS,
-    required: false,
   },
   {
-    id: 12,
+    id: 7,
     type: 'single',
     field: 'stressLevel',
-    title: '12. How would you rate your current daily stress level?',
+    title: '7. How would you rate your current daily stress level?',
     options: STRESS_LEVELS,
-    required: false,
   },
-  // Section 5: Nutrition & Weight
   {
-    id: 13,
+    id: 8,
     type: 'multi',
     field: 'foodStruggles',
-    title: '13. What is your biggest struggle regarding food?',
+    title: '8. What is your biggest struggle regarding food?',
     options: FOOD_STRUGGLES,
     multiSelect: true,
-    required: false,
   },
   {
-    id: 14,
+    id: 9,
     type: 'single',
     field: 'dietaryLifestyle',
-    title: '14. Do you follow a specific dietary lifestyle?',
+    title: '9. Do you follow a specific dietary lifestyle?',
     options: DIETARY_LIFESTYLES,
-    required: false,
   },
 ];
 
 const TOTAL_QUESTIONS = QUESTIONS.length;
 
-export default function ComprehensiveOnboardingScreen() {
+export default function OnboardingQuestionsScreen() {
   const { theme, accentColor } = useTheme();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const { data, isLoading, error } = useSelector(
+  const { data, questionsData, isLoading } = useSelector(
     (state: RootState) => state.onboarding
   );
-  const [calculating, setCalculating] = useState(false);
+  
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [calculating, setCalculating] = useState(false);
+  
   const currentQuestion = QUESTIONS[currentQuestionIndex];
   const dynamicStyles = useMemo(() => createStyles(theme, accentColor), [theme, accentColor]);
   
   // Helper function to add opacity to hex color for gradient
-  const addOpacityToHex = (hex: string, opacity: number) => {
+  const addOpacityToHex = useCallback((hex: string, opacity: number) => {
     const hexWithoutHash = hex.replace('#', '');
     const r = parseInt(hexWithoutHash.substring(0, 2), 16);
     const g = parseInt(hexWithoutHash.substring(2, 4), 16);
     const b = parseInt(hexWithoutHash.substring(4, 6), 16);
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  };
+  }, []);
   
   // Create gradient colors for calculating screen
   const calculatingGradientColors: [string, string, string] = useMemo(() => [
     addOpacityToHex(accentColor, 0.15),
     addOpacityToHex(accentColor, 0.08),
     theme.background,
-  ] as [string, string, string], [theme, accentColor]);
-
-  // Data is stored in Redux slice - no auto-save to backend
-  // Backend sync happens only on completion
+  ] as [string, string, string], [theme, accentColor, addOpacityToHex]);
 
   const handleNext = useCallback(() => {
-    if (currentQuestionIndex < TOTAL_QUESTIONS - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    } else {
+    const nextIndex = currentQuestionIndex + 1;
+    
+    // If we're finishing all questions, complete everything
+    if (nextIndex >= TOTAL_QUESTIONS) {
       handleComplete();
+      return;
     }
+    
+    setCurrentQuestionIndex(nextIndex);
   }, [currentQuestionIndex]);
 
   const handleBack = useCallback(() => {
@@ -266,120 +179,70 @@ export default function ComprehensiveOnboardingScreen() {
   }, [currentQuestionIndex]);
 
   const handleComplete = async () => {
+    if (isCompleting || calculating) {
+      return;
+    }
+
     try {
-      log('🚀 Starting onboarding completion...');
-      log('📊 Current onboarding data:', data);
+      setIsCompleting(true);
       
-      // Validate required fields before attempting to save
-      const hasCycleLength = !!data.cycleLength || typeof data.averageCycleLength === 'number';
-      const hasPeriodDuration = !!data.periodDuration || typeof data.periodDuration === 'number';
+      // Save onboarding questions (can be empty if user skipped)
+      await dispatch(saveOnboardingQuestions(questionsData || {})).unwrap();
       
-      if (!hasCycleLength || !hasPeriodDuration) {
-        const missingFields = [];
-        if (!hasCycleLength) missingFields.push('Cycle Length');
-        if (!hasPeriodDuration) missingFields.push('Period Duration');
-        
-        log('❌ Missing required fields:', missingFields);
-        Alert.alert(
-          'Missing Information',
-          `Please answer all required questions:\n\n${missingFields.join('\n')}`,
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
-      // First save all data to backend
-      log('💾 Step 1: Saving onboarding data to backend...');
-      log('🔍 Required fields check:', {
-        cycleLength: data.cycleLength,
-        periodDuration: data.periodDuration,
-        averageCycleLength: data.averageCycleLength,
-      });
-      
-      const saveResult = await dispatch(saveOnboardingData(data)).unwrap();
-      log('✅ Step 1 Complete: Data saved', saveResult);
-      
-      // Then complete onboarding - this should mark user as completed in backend
-      log('✅ Step 2: Completing onboarding...');
-      const completeResult = await dispatch(completeOnboarding()).unwrap();
-      log('✅ Step 2 Complete: Onboarding marked as complete', completeResult);
+      // Complete onboarding questions
+      await dispatch(completeOnboardingQuestions()).unwrap();
 
       // Sync user to get updated profile and onboarding status from backend
-      log('🔄 Step 3: Syncing user profile...');
       const syncResult = await dispatch(syncUser()).unwrap();
-      log('✅ Step 3 Complete: User profile synced', syncResult);
-      log('📋 Onboarding completed status from backend:', syncResult?.onboardingCompleted);
       
-      // Only set in Redux if backend confirms it's completed
-      // The syncUser should have already updated it, but ensure it's set
+      // Set onboarding completed flag
       if (syncResult?.onboardingCompleted !== false) {
         dispatch(setOnboardingCompleted(syncResult?.onboardingCompleted ?? true));
-        log('✅ Onboarding completed flag set in Redux:', syncResult?.onboardingCompleted ?? true);
       } else {
-        log('⚠️ WARNING: Backend reports onboarding NOT completed!', {
-          backendStatus: syncResult?.onboardingCompleted,
-        });
-        // Still set it for now, but log the warning
         dispatch(setOnboardingCompleted(true));
       }
 
       // Show calculation screen
       setCalculating(true);
+      setIsCompleting(false);
+      
+      // Navigate to main app after short delay
       setTimeout(() => {
-        log('🔀 Navigating to main app...');
         router.replace('/(tabs)');
       }, 2000);
     } catch (error: any) {
-      logError('❌ Onboarding completion error', error);
+      setIsCompleting(false);
+      setCalculating(false);
       
-      // Detailed error logging
-      const errorDetails = {
-        message: error?.message,
-        response: {
-          status: error?.response?.status,
-          statusText: error?.response?.statusText,
-          data: error?.response?.data,
-          headers: error?.response?.headers,
-        },
-        request: {
-          url: error?.config?.url,
-          method: error?.config?.method,
-          data: error?.config?.data,
-          headers: error?.config?.headers,
-        },
-        stack: error?.stack,
-      };
-      
-      log('🔍 Full error details:', errorDetails);
-      
-      // User-friendly error message
       const errorMessage = 
         error?.response?.data?.message || 
         error?.response?.data?.error ||
         error?.message || 
         'Failed to complete onboarding. Please try again.';
       
-      log('📢 Showing error to user:', errorMessage);
-      alert(`Error: ${errorMessage}\n\nCheck Reactotron for details.`);
-      setCalculating(false);
+      Alert.alert('Error', errorMessage, [{ text: 'OK' }]);
     }
   };
 
-  const canProceed = () => {
-    // For required questions, check if they have an answer
-    if (currentQuestion.required) {
-      const field = currentQuestion.field as keyof OnboardingData;
-      const value = (data as any)[field];
-      if (currentQuestion.type === 'multi') {
-        return Array.isArray(value) && value.length > 0;
-      }
-      return !!value;
-    }
-    // Optional questions can always proceed
-    return true;
+  const handleSkip = () => {
+    Alert.alert(
+      'Skip Questions',
+      'Are you sure you want to skip these questions? You can answer them later from settings.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Skip',
+          style: 'default',
+          onPress: () => {
+            // Complete without saving questions
+            handleComplete();
+          },
+        },
+      ]
+    );
   };
 
-  const handleSelect = (value: string) => {
+  const handleSelect = useCallback((value: string) => {
     const field = currentQuestion.field as keyof OnboardingData;
     
     if (currentQuestion.type === 'multi') {
@@ -414,16 +277,16 @@ export default function ComprehensiveOnboardingScreen() {
         })
       );
     }
-  };
+  }, [currentQuestion, data, dispatch]);
 
-  const getSelectedValues = () => {
+  const getSelectedValues = useCallback(() => {
     const field = currentQuestion.field as keyof OnboardingData;
     const value = (data as any)[field];
     if (currentQuestion.type === 'multi') {
       return Array.isArray(value) ? value : [];
     }
     return value ? [value] : [];
-  };
+  }, [currentQuestion, data]);
 
   // Show calculation loading screen
   if (calculating) {
@@ -435,8 +298,12 @@ export default function ComprehensiveOnboardingScreen() {
         >
           <View style={dynamicStyles.calculatingContent}>
             <ActivityIndicator size="large" color={accentColor} style={dynamicStyles.calculatingSpinner} />
-            <Text style={[dynamicStyles.calculatingTitle, { color: theme.textPrimary }]}>Setting Up Your Profile</Text>
-            <Text style={[dynamicStyles.calculatingSubtitle, { color: theme.textSecondary }]}>Please wait...</Text>
+            <Text style={[dynamicStyles.calculatingTitle, { color: theme.textPrimary }]}>
+              Setting Up Your Profile
+            </Text>
+            <Text style={[dynamicStyles.calculatingSubtitle, { color: theme.textSecondary }]}>
+              Please wait...
+            </Text>
           </View>
         </LinearGradient>
       </View>
@@ -462,7 +329,7 @@ export default function ComprehensiveOnboardingScreen() {
           />
         </View>
         <Text style={[dynamicStyles.progressText, { color: theme.textSecondary }]}>
-          Question {currentQuestionIndex + 1} of {TOTAL_QUESTIONS}
+          Question {currentQuestionIndex + 1} of {TOTAL_QUESTIONS} (Optional)
         </Text>
       </View>
 
@@ -470,43 +337,25 @@ export default function ComprehensiveOnboardingScreen() {
         contentContainerStyle={dynamicStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Question Content */}
-        <View style={dynamicStyles.questionContainer}>
-          {currentQuestion.type === 'date' ? (
-            <DatePickerQuestion
-              title={currentQuestion.title}
-              subtitle={currentQuestion.subtitle}
-              value={(data as any)[currentQuestion.field as keyof OnboardingData]}
-              onChange={(date) =>
-                dispatch(
-                  updateField({
-                    field: currentQuestion.field as keyof OnboardingData,
-                    value: date,
-                  })
-                )
-              }
-            />
-          ) : (
-            <QuestionSection
-              title={currentQuestion.title}
-              subtitle={currentQuestion.subtitle}
-              options={currentQuestion.options || []}
-              selectedValues={getSelectedValues()}
-              onSelect={handleSelect}
-              multiSelect={currentQuestion.multiSelect || false}
-              maxSelections={currentQuestion.maxSelections}
-            />
-          )}
+        {/* Skip Notice */}
+        <View style={[dynamicStyles.skipNotice, { backgroundColor: theme.primarySoft, borderColor: theme.border }]}>
+          <Text style={[dynamicStyles.skipNoticeText, { color: theme.textSecondary }]}>
+            💡 These questions are optional. You can skip them and answer later.
+          </Text>
         </View>
 
-        {error && (
-          <View style={[dynamicStyles.errorContainer, { 
-            backgroundColor: `${accentColor}20`,
-            borderColor: `${accentColor}40`,
-          }]}>
-            <Text style={[dynamicStyles.errorText, { color: accentColor }]}>{error}</Text>
-          </View>
-        )}
+        {/* Question Content */}
+        <View style={dynamicStyles.questionContainer}>
+          <QuestionSection
+            title={currentQuestion.title}
+            subtitle={currentQuestion.subtitle}
+            options={currentQuestion.options || []}
+            selectedValues={getSelectedValues()}
+            onSelect={handleSelect}
+            multiSelect={currentQuestion.multiSelect || false}
+            maxSelections={currentQuestion.maxSelections}
+          />
+        </View>
 
         {/* Navigation Buttons */}
         <View style={dynamicStyles.buttonContainer}>
@@ -523,27 +372,40 @@ export default function ComprehensiveOnboardingScreen() {
             style={[
               dynamicStyles.button,
               { backgroundColor: accentColor, shadowColor: accentColor },
-              (!canProceed() || isLoading) && dynamicStyles.buttonDisabled,
+              (isLoading || isCompleting) && dynamicStyles.buttonDisabled,
             ]}
             onPress={handleNext}
-            disabled={!canProceed() || isLoading}
+            disabled={isLoading || isCompleting}
           >
-            {isLoading ? (
+            {isLoading || isCompleting ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={dynamicStyles.buttonPrimaryText}>
-                {currentQuestionIndex === TOTAL_QUESTIONS - 1 ? 'Complete Setup' : 'Next'}
+                {currentQuestionIndex === TOTAL_QUESTIONS - 1
+                  ? 'Complete Setup'
+                  : 'Next'}
               </Text>
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Skip Button */}
+        <TouchableOpacity
+          style={[dynamicStyles.skipButton, { borderColor: theme.border }]}
+          onPress={handleSkip}
+          disabled={isCompleting}
+        >
+          <Text style={[dynamicStyles.skipButtonText, { color: theme.textSecondary }]}>
+            Skip All Questions
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 // ============================================================================
-// DYNAMIC STYLES (Theme-aware)
+// STYLES
 // ============================================================================
 
 const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
@@ -576,22 +438,21 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     paddingBottom: 40,
     justifyContent: 'space-between',
   },
+  skipNotice: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 24,
+    borderWidth: 1,
+  },
+  skipNoticeText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   questionContainer: {
     flex: 1,
     justifyContent: 'center',
     minHeight: 400,
-  },
-  errorContainer: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    marginTop: 16,
-    borderWidth: 1,
-  },
-  errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -625,6 +486,17 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  skipButton: {
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+  },
+  skipButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
   calculatingContainer: {
     flex: 1,
   },
@@ -648,7 +520,6 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
     letterSpacing: 0.5,
-    fontFamily: 'Bold',
   },
   calculatingSubtitle: {
     fontSize: 18,
@@ -657,3 +528,4 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     opacity: 0.8,
   },
 });
+

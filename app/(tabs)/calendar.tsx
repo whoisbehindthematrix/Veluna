@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/src/store';
@@ -20,8 +20,10 @@ import QuickNoteModal from '@/components/core-components/QuickNoteModal';
 import SymptomTrackerModal, { type SymptomState } from '@/components/core-components/SymptomTrackerModal';
 import TodaySummaryCard from '@/components/core-components/TodaySummaryCard';
 import DateActionModal from '@/components/core-components/DateActionModal';
+import LegendModal from '@/components/core-components/LegendModal';
 import { quickNoteService } from '@/services/quickNoteService';
 import { useTheme } from '@/src/context/ThemeContext';
+import { Info } from 'lucide-react-native';
 
 type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
 
@@ -84,6 +86,7 @@ export default function CalendarScreen() {
   const [showQuickNoteModal, setShowQuickNoteModal] = useState(false);
   const [editingQuickNote, setEditingQuickNote] = useState<QuickNote | null>(null);
   const [showSymptomTrackerModal, setShowSymptomTrackerModal] = useState(false);
+  const [showLegendModal, setShowLegendModal] = useState(false);
 
   const entriesMap = useMemo(() => {
     return cycleState.entries.reduce<Record<string, CycleEntry>>((acc, entry) => {
@@ -436,7 +439,7 @@ export default function CalendarScreen() {
     textSectionTitleDisabledColor: theme.textSecondary,
     selectedDayBackgroundColor: accentColor, // Use accent color for selected date (UI state)
     selectedDayTextColor: '#fff',
-    todayTextColor: '#92400e', // Keep today color as-is (data indicator)
+    // todayTextColor: '#92400e', // Keep today color as-is (data indicator)
     dayTextColor: theme.textPrimary,
     textDisabledColor: theme.textSecondary,
     dotColor: '#ec4899', // Keep period dot color as-is (data)
@@ -448,7 +451,7 @@ export default function CalendarScreen() {
     textDayFontSize: 16,
     textMonthFontFamily: 'Bold',
     textMonthFontWeight: '700',
-    textMonthFontSize: 20,
+    textMonthFontSize: 24,
     textDayHeaderFontFamily: 'Bold',
     textDayHeaderFontWeight: '600',
     textDayHeaderFontSize: 12,
@@ -469,7 +472,16 @@ export default function CalendarScreen() {
     <ScrollView style={[dynamicStyles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={[dynamicStyles.header, { backgroundColor: theme.cardBackground }]}>
-        <AppText variant='bold' style={[dynamicStyles.title, { color: theme.textPrimary }]}>Cycle Calendar</AppText>
+        <View style={dynamicStyles.headerTop}>
+          <AppText variant='bold' style={[dynamicStyles.title, { color: theme.textPrimary }]}>Cycle Calendar</AppText>
+          <TouchableOpacity
+            onPress={() => setShowLegendModal(true)}
+            style={[dynamicStyles.infoButton, { backgroundColor: `${accentColor}20` }]}
+            activeOpacity={0.7}
+          >
+            <Info size={18} color={accentColor} />
+          </TouchableOpacity>
+        </View>
         <Text style={[dynamicStyles.subtitle, { color: accentColor }]}>Track your period and symptoms</Text>
       </View>
 
@@ -514,48 +526,6 @@ export default function CalendarScreen() {
         }}
       />
 
-      {/* Legend */}
-      <View style={[dynamicStyles.legend, { backgroundColor: theme.cardBackground }]}>
-        <Text style={[dynamicStyles.legendTitle, { color: theme.textPrimary }]}>Legend</Text>
-        <View style={dynamicStyles.legendItems}>
-          <View style={dynamicStyles.legendItem}>
-            <View style={[dynamicStyles.legendColor, { backgroundColor: '#ec4899' }]} />
-            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Period</Text>
-          </View>
-          <View style={dynamicStyles.legendItem}>
-            <View style={[dynamicStyles.legendColor, { backgroundColor: '#8b5cf6' }]} />
-            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Symptoms logged</Text>
-          </View>
-          <View style={dynamicStyles.legendItem}>
-            <View style={[dynamicStyles.legendColor, { backgroundColor: '#10b981' }]} />
-            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Quick notes</Text>
-          </View>
-          <View style={dynamicStyles.legendItem}>
-            <View style={[dynamicStyles.legendColor, { backgroundColor: '#f59e0b', borderRadius: 2 }]} />
-            <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>Today</Text>
-          </View>
-        </View>
-
-        {/* Phase colors legend */}
-        <Text style={[dynamicStyles.legendTitle, { marginTop: 16, color: theme.textPrimary }]}>Phase Colors</Text>
-        <View style={dynamicStyles.legendItems}>
-          {Object.entries(phaseRecommendations).map(([key, phase]) => (
-            <View key={key} style={dynamicStyles.legendItem}>
-              <View
-                style={[
-                  dynamicStyles.legendColor,
-                  {
-                    backgroundColor: phase.color + '20',
-                    borderWidth: 2,
-                    borderColor: phase.color,
-                  },
-                ]}
-              />
-              <Text style={[dynamicStyles.legendText, { color: theme.textSecondary }]}>{phase.name}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
 
       {/* Date Action Modal */}
       <DateActionModal
@@ -589,6 +559,12 @@ export default function CalendarScreen() {
         date={selectedDate}
         initialSymptoms={selectedEntry?.symptoms}
       />
+
+      {/* Legend Modal */}
+      <LegendModal
+        visible={showLegendModal}
+        onClose={() => setShowLegendModal(false)}
+      />
     </ScrollView>
   );
 }
@@ -606,10 +582,27 @@ const createDynamicStyles = (theme: any, accentColor: string) => StyleSheet.crea
     paddingHorizontal: 24,
     paddingBottom: 30,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 8,
+  },
   title: {
     fontSize: 30,
     fontWeight: '400',
     textAlign: 'center',
+    flex: 1,
+  },
+  infoButton: {
+    position: 'absolute',
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   subtitle: {
     fontSize: 14,

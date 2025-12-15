@@ -1,6 +1,6 @@
 // src/store/slices/authSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import api, { saveTokens, removeTokens, getAccessToken } from '@/lib/api';
+import api, { saveTokens, removeTokens, getAccessToken, getRefreshToken } from '@/lib/api';
 import { resetCycle } from './cycleSlice';
 import { resetProfile, setProfile } from './userProfileSlice';
 
@@ -172,6 +172,22 @@ export const restoreSession = createAsyncThunk(
   'auth/restoreSession',
   async (_, { rejectWithValue }) => {
     try {
+      // Check if we have tokens before making API call
+      const accessToken = await getAccessToken();
+      const refreshToken = await getRefreshToken();
+      
+      // If no tokens at all, skip API call and return null
+      if (!accessToken && !refreshToken) {
+        if (__DEV__) {
+          console.log('🔄 [restoreSession] No tokens found, skipping API call');
+        }
+        return {
+          user: null,
+          session: null,
+          onboardingCompleted: false,
+        };
+      }
+      
       // Try to get user profile to verify token is valid
       const res = await api.get("/auth/me");
       
@@ -198,10 +214,14 @@ export const restoreSession = createAsyncThunk(
       };
     } catch (err: any) {
       // If token is invalid, clear it
+      if (__DEV__) {
+        console.log('🔄 [restoreSession] Error restoring session:', err?.message);
+      }
       await removeTokens();
       return {
         user: null,
         session: null,
+        onboardingCompleted: false,
       };
     }
   }

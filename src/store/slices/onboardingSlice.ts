@@ -1,7 +1,9 @@
 /**
  * Onboarding Redux Slice
  * 
- * Manages comprehensive onboarding survey data with proper state management
+ * Manages onboarding data split into two parts:
+ * 1. Basic onboarding (profile info with numeric values)
+ * 2. Onboarding questions (questionnaire data)
  */
 
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
@@ -12,41 +14,7 @@ import api from '@/lib/api';
 // TYPES
 // ============================================================================
 
-export type WeightRange =
-  | 'under_45'
-  | '45_50'
-  | '50_55'
-  | '55_60'
-  | '60_65'
-  | '65_70'
-  | '70_75'
-  | '75_80'
-  | '80_85'
-  | '85_90'
-  | '90_95'
-  | '95_100'
-  | '100_110'
-  | '110_120'
-  | '120_plus';
-
-export type HeightRange =
-  | 'under_4_10'
-  | '4_10'
-  | '4_11'
-  | '5_0'
-  | '5_1'
-  | '5_2'
-  | '5_3'
-  | '5_4'
-  | '5_5'
-  | '5_6'
-  | '5_7'
-  | '5_8'
-  | '5_9'
-  | '5_10'
-  | '5_11'
-  | '6_0'
-  | 'over_6_0';
+export type UnitsSystem = 'metric' | 'imperial';
 
 export type ReproductiveStage =
   | 'menstruating'
@@ -69,16 +37,6 @@ export type BirthControl =
   | 'copper_iud'
   | 'implant_injection_patch'
   | 'tubal_ligation';
-
-export type CycleLength =
-  | 'less_than_21'
-  | '21_24'
-  | '25_30'
-  | '31_35'
-  | 'longer_than_35'
-  | 'irregular';
-
-export type PeriodDuration = '1_3' | '4_6' | '7_plus';
 
 export type MedicalDiagnosis =
   | 'pcos'
@@ -126,38 +84,73 @@ export type DietaryLifestyle =
   | 'gluten_free'
   | 'dairy_free';
 
-export interface OnboardingData {
-  // Section 1: Baseline Profile
-  dateOfBirth?: string; // ISO date string
-  weightRange?: WeightRange;
-  heightRange?: HeightRange;
+// Part 1: Basic Onboarding Data
+export interface BasicOnboardingData {
+  dateOfBirth?: string; // YYYY-MM-DD format
+  weight?: number; // Actual weight value
+  height?: number; // Actual height value (cm for metric, inches for imperial)
+  targetWeight?: number;
+  unitsSystem?: UnitsSystem; // "metric" | "imperial"
+  dailyCalorieGoal?: number;
+  averageCycleLength: number; // Required: 21-40, default: 28
+  periodDuration: number; // Required: 1-7, default: 5
+}
+
+// Part 2: Onboarding Questions Data
+export interface OnboardingQuestionsData {
   reproductiveStage?: ReproductiveStage;
   healthGoal?: HealthGoal;
-
-  // Section 2: Cycle Details
-  birthControl?: BirthControl[]; // Multi-select
-  cycleLength?: CycleLength;
-  periodDuration?: PeriodDuration;
-
-  // Section 3: Hormonal & Physical Symptoms
-  medicalDiagnoses?: MedicalDiagnosis[]; // Multi-select
-  physicalSymptoms?: PhysicalSymptom[]; // Multi-select (top 3)
-
-  // Section 4: Mood & Mindset
+  birthControl?: BirthControl[]; // Array of strings
+  medicalDiagnoses?: MedicalDiagnosis[]; // Array of strings
+  physicalSymptoms?: PhysicalSymptom[]; // Array of strings, max 3
   pmsMood?: PMSMood;
   stressLevel?: StressLevel;
+  foodStruggles?: FoodStruggle[]; // Array of strings
+  dietaryLifestyle?: DietaryLifestyle;
+}
 
-  // Section 5: Nutrition & Weight
-  foodStruggles?: FoodStruggle[]; // Multi-select
+// Combined interface for local state management
+export interface OnboardingData {
+  // Basic onboarding fields
+  dateOfBirth?: string;
+  weight?: number;
+  height?: number;
+  targetWeight?: number;
+  unitsSystem?: UnitsSystem;
+  dailyCalorieGoal?: number;
+  averageCycleLength?: number;
+  periodDuration?: number;
+  
+  // Questions fields
+  reproductiveStage?: ReproductiveStage;
+  healthGoal?: HealthGoal;
+  birthControl?: BirthControl[];
+  medicalDiagnoses?: MedicalDiagnosis[];
+  physicalSymptoms?: PhysicalSymptom[];
+  pmsMood?: PMSMood;
+  stressLevel?: StressLevel;
+  foodStruggles?: FoodStruggle[];
   dietaryLifestyle?: DietaryLifestyle;
 }
 
 export interface OnboardingState {
+  // Separate data structures for each part
+  basicData: BasicOnboardingData;
+  questionsData: OnboardingQuestionsData;
+  
+  // Combined data for backward compatibility
   data: OnboardingData;
-  currentSection: number;
+  
+  // UI state
+  currentQuestionIndex: number;
   isLoading: boolean;
   error: string | null;
+  
+  // Completion status
+  basicCompleted: boolean;
+  questionsCompleted: boolean;
   isCompleted: boolean;
+  
   lastSyncedAt: string | null;
 }
 
@@ -166,10 +159,20 @@ export interface OnboardingState {
 // ============================================================================
 
 const initialState: OnboardingState = {
-  data: {},
-  currentSection: 1,
+  basicData: {
+    averageCycleLength: 28,
+    periodDuration: 5,
+  },
+  questionsData: {},
+  data: {
+    averageCycleLength: 28,
+    periodDuration: 5,
+  },
+  currentQuestionIndex: 0,
   isLoading: false,
   error: null,
+  basicCompleted: false,
+  questionsCompleted: false,
   isCompleted: false,
   lastSyncedAt: null,
 };
@@ -179,84 +182,108 @@ const initialState: OnboardingState = {
 // ============================================================================
 
 /**
- * Save onboarding data to backend
+ * Save basic onboarding data to backend
  */
-export const saveOnboardingData = createAsyncThunk(
-  'onboarding/saveData',
-  async (data: OnboardingData, { rejectWithValue }) => {
+export const saveBasicOnboarding = createAsyncThunk(
+  'onboarding/saveBasic',
+  async (data: Partial<BasicOnboardingData>, { rejectWithValue }) => {
     try {
-      const response = await onboardingService.saveOnboardingData(data);
+      const response = await onboardingService.saveBasicOnboarding(data);
       return response;
     } catch (error: any) {
-      console.error('Failed to save onboarding data:', error);
+      console.error('Failed to save basic onboarding:', error);
       return rejectWithValue(
-        error?.response?.data?.message || 'Failed to save onboarding data'
+        error?.response?.data?.message || 'Failed to save basic onboarding'
       );
     }
   }
 );
 
 /**
- * Load onboarding data from backend
+ * Save onboarding questions to backend
  */
-export const loadOnboardingData = createAsyncThunk(
-  'onboarding/loadData',
+export const saveOnboardingQuestions = createAsyncThunk(
+  'onboarding/saveQuestions',
+  async (data: Partial<OnboardingQuestionsData>, { rejectWithValue }) => {
+    try {
+      const response = await onboardingService.saveOnboardingQuestions(data);
+      return response;
+    } catch (error: any) {
+      console.error('Failed to save onboarding questions:', error);
+      return rejectWithValue(
+        error?.response?.data?.message || 'Failed to save onboarding questions'
+      );
+    }
+  }
+);
+
+/**
+ * Get basic onboarding data from backend
+ */
+export const loadBasicOnboarding = createAsyncThunk(
+  'onboarding/loadBasic',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await onboardingService.getOnboardingData();
+      const response = await onboardingService.getBasicOnboarding();
       return response;
     } catch (error: any) {
-      console.error('Failed to load onboarding data:', error);
+      console.error('Failed to load basic onboarding:', error);
       return rejectWithValue(
-        error?.response?.data?.message || 'Failed to load onboarding data'
+        error?.response?.data?.message || 'Failed to load basic onboarding'
       );
     }
   }
 );
 
 /**
- * Complete onboarding and mark as finished
+ * Get onboarding questions from backend
  */
-export const completeOnboarding = createAsyncThunk(
-  'onboarding/complete',
-  async (_, { getState, rejectWithValue, dispatch }) => {
+export const loadOnboardingQuestions = createAsyncThunk(
+  'onboarding/loadQuestions',
+  async (_, { rejectWithValue }) => {
     try {
-      const state = getState() as { onboarding: OnboardingState };
-      const { data } = state.onboarding;
-
-      // Save all data first
-      console.log('💾 [completeOnboarding] Step 1: Saving onboarding data...');
-      await dispatch(saveOnboardingData(data)).unwrap();
-      console.log('✅ [completeOnboarding] Step 1: Data saved successfully');
-
-      // Mark as completed - backend should update User.onboardingCompleted = true
-      console.log('✅ [completeOnboarding] Step 2: Calling /onboarding/complete endpoint...');
-      const response = await api.post('/onboarding/complete');
-      console.log('✅ [completeOnboarding] Step 2: Response received:', {
-        status: response.status,
-        data: response.data,
-        user: response.data?.user,
-        onboardingCompleted: response.data?.user?.onboardingCompleted,
-      });
-      
-      // The backend should return the updated user with onboardingCompleted: true
-      // If not, we need to manually sync the user
-      if (response.data?.user?.onboardingCompleted === false || 
-          response.data?.user?.onboardingCompleted === undefined) {
-        console.warn('⚠️ [completeOnboarding] Backend did not return onboardingCompleted: true');
-        console.warn('⚠️ [completeOnboarding] Response:', response.data);
-      }
-      
-      return response.data;
+      const response = await onboardingService.getOnboardingQuestions();
+      return response;
     } catch (error: any) {
-      console.error('❌ [completeOnboarding] Failed to complete onboarding:', error);
-      console.error('❌ [completeOnboarding] Error details:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status,
-      });
+      console.error('Failed to load onboarding questions:', error);
       return rejectWithValue(
-        error?.response?.data?.message || 'Failed to complete onboarding'
+        error?.response?.data?.message || 'Failed to load onboarding questions'
+      );
+    }
+  }
+);
+
+/**
+ * Complete basic onboarding
+ */
+export const completeBasicOnboarding = createAsyncThunk(
+  'onboarding/completeBasic',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await onboardingService.completeBasicOnboarding();
+      return response;
+    } catch (error: any) {
+      console.error('Failed to complete basic onboarding:', error);
+      return rejectWithValue(
+        error?.response?.data?.message || 'Failed to complete basic onboarding'
+      );
+    }
+  }
+);
+
+/**
+ * Complete onboarding questions
+ */
+export const completeOnboardingQuestions = createAsyncThunk(
+  'onboarding/completeQuestions',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await onboardingService.completeOnboardingQuestions();
+      return response;
+    } catch (error: any) {
+      console.error('Failed to complete onboarding questions:', error);
+      return rejectWithValue(
+        error?.response?.data?.message || 'Failed to complete onboarding questions'
       );
     }
   }
@@ -270,12 +297,25 @@ const onboardingSlice = createSlice({
   name: 'onboarding',
   initialState,
   reducers: {
-    // Update specific field in onboarding data
+    // Update specific field in combined data
     updateField: (
       state: OnboardingState,
       action: PayloadAction<{ field: keyof OnboardingData; value: any }>
     ) => {
-      (state.data as any)[action.payload.field] = action.payload.value;
+      const { field, value } = action.payload;
+      
+      // Update combined data
+      (state.data as any)[field] = value;
+      
+      // Also update the appropriate part
+      if (field === 'dateOfBirth' || field === 'weight' || field === 'height' || 
+          field === 'targetWeight' || field === 'unitsSystem' || field === 'dailyCalorieGoal' ||
+          field === 'averageCycleLength' || field === 'periodDuration') {
+        (state.basicData as any)[field] = value;
+      } else {
+        (state.questionsData as any)[field] = value;
+      }
+      
       state.error = null;
     },
 
@@ -285,34 +325,45 @@ const onboardingSlice = createSlice({
       action: PayloadAction<Partial<OnboardingData>>
     ) => {
       state.data = { ...state.data, ...action.payload };
+      
+      // Split into basic and questions
+      Object.keys(action.payload).forEach((key) => {
+        const field = key as keyof OnboardingData;
+        const value = action.payload[field];
+        
+        if (field === 'dateOfBirth' || field === 'weight' || field === 'height' || 
+            field === 'targetWeight' || field === 'unitsSystem' || field === 'dailyCalorieGoal' ||
+            field === 'averageCycleLength' || field === 'periodDuration') {
+          (state.basicData as any)[field] = value;
+        } else {
+          (state.questionsData as any)[field] = value;
+        }
+      });
+      
       state.error = null;
     },
 
-    // Update current section
-    setCurrentSection: (state, action: PayloadAction<number>) => {
-      state.currentSection = action.payload;
-    },
-
-    // Navigate to next section
-    nextSection: (state) => {
-      if (state.currentSection < 5) {
-        state.currentSection += 1;
-      }
-    },
-
-    // Navigate to previous section
-    previousSection: (state) => {
-      if (state.currentSection > 1) {
-        state.currentSection -= 1;
-      }
+    // Update current question index
+    setCurrentQuestionIndex: (state, action: PayloadAction<number>) => {
+      state.currentQuestionIndex = action.payload;
     },
 
     // Reset onboarding state
     resetOnboarding: (state) => {
-      state.data = {};
-      state.currentSection = 1;
+      state.basicData = {
+        averageCycleLength: 28,
+        periodDuration: 5,
+      };
+      state.questionsData = {};
+      state.data = {
+        averageCycleLength: 28,
+        periodDuration: 5,
+      };
+      state.currentQuestionIndex = 0;
       state.error = null;
       state.isCompleted = false;
+      state.basicCompleted = false;
+      state.questionsCompleted = false;
       state.lastSyncedAt = null;
     },
 
@@ -322,54 +373,113 @@ const onboardingSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Save onboarding data
+    // Save basic onboarding
     builder
-      .addCase(saveOnboardingData.pending, (state) => {
+      .addCase(saveBasicOnboarding.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(saveOnboardingData.fulfilled, (state, action) => {
+      .addCase(saveBasicOnboarding.fulfilled, (state, action) => {
         state.isLoading = false;
         state.lastSyncedAt = new Date().toISOString();
-        // Merge response data if provided
         if (action.payload?.data) {
+          state.basicData = { ...state.basicData, ...action.payload.data };
+          // Update combined data
           state.data = { ...state.data, ...action.payload.data };
         }
       })
-      .addCase(saveOnboardingData.rejected, (state, action) => {
+      .addCase(saveBasicOnboarding.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });
 
-    // Load onboarding data
+    // Save onboarding questions
     builder
-      .addCase(loadOnboardingData.pending, (state) => {
+      .addCase(saveOnboardingQuestions.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(loadOnboardingData.fulfilled, (state, action) => {
+      .addCase(saveOnboardingQuestions.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.lastSyncedAt = new Date().toISOString();
         if (action.payload?.data) {
-          state.data = action.payload.data;
+          state.questionsData = { ...state.questionsData, ...action.payload.data };
+          // Update combined data
+          state.data = { ...state.data, ...action.payload.data };
         }
       })
-      .addCase(loadOnboardingData.rejected, (state, action) => {
+      .addCase(saveOnboardingQuestions.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });
 
-    // Complete onboarding
+    // Load basic onboarding
     builder
-      .addCase(completeOnboarding.pending, (state) => {
+      .addCase(loadBasicOnboarding.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(completeOnboarding.fulfilled, (state) => {
+      .addCase(loadBasicOnboarding.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isCompleted = true;
+        if (action.payload?.data) {
+          state.basicData = action.payload.data;
+          // Update combined data
+          state.data = { ...state.data, ...action.payload.data };
+        }
+      })
+      .addCase(loadBasicOnboarding.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Load onboarding questions
+    builder
+      .addCase(loadOnboardingQuestions.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(loadOnboardingQuestions.fulfilled, (state, action) => {
+        state.isLoading = false;
+        if (action.payload?.data) {
+          state.questionsData = action.payload.data;
+          // Update combined data
+          state.data = { ...state.data, ...action.payload.data };
+        }
+      })
+      .addCase(loadOnboardingQuestions.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Complete basic onboarding
+    builder
+      .addCase(completeBasicOnboarding.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(completeBasicOnboarding.fulfilled, (state) => {
+        state.isLoading = false;
+        state.basicCompleted = true;
         state.lastSyncedAt = new Date().toISOString();
       })
-      .addCase(completeOnboarding.rejected, (state, action) => {
+      .addCase(completeBasicOnboarding.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Complete onboarding questions
+    builder
+      .addCase(completeOnboardingQuestions.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(completeOnboardingQuestions.fulfilled, (state) => {
+        state.isLoading = false;
+        state.questionsCompleted = true;
+        state.isCompleted = state.basicCompleted && state.questionsCompleted;
+        state.lastSyncedAt = new Date().toISOString();
+      })
+      .addCase(completeOnboardingQuestions.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });
@@ -379,12 +489,9 @@ const onboardingSlice = createSlice({
 export const {
   updateField,
   updateFields,
-  setCurrentSection,
-  nextSection,
-  previousSection,
+  setCurrentQuestionIndex,
   resetOnboarding,
   clearError,
 } = onboardingSlice.actions;
 
 export default onboardingSlice.reducer;
-
