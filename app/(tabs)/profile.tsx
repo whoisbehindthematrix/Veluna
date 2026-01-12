@@ -11,19 +11,14 @@ import { useCycleInsights } from '@/hooks/useCycleInsights';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useTheme } from '@/src/context/ThemeContext';
 import api from '@/lib/api';
+import NeuButton from '@/components/core-components/NeuButton';
+import { addOpacityToHex, darkenColor } from '@/src/utils';
+import NeuPressable from '@/components/core-components/NeuPressable';
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-// Helper to add opacity to hex colors
-const addOpacityToHex = (hex: string, opacity: number): string => {
-  // Remove # if present
-  const cleanHex = hex.replace('#', '');
-  // Convert opacity (0-1) to hex (00-FF)
-  const hexOpacity = Math.round(opacity * 255).toString(16).padStart(2, '0');
-  return `#${cleanHex}${hexOpacity}`;
-};
 
 const getPhaseBadgeColor = (phase: string) => {
   switch (phase) {
@@ -66,7 +61,7 @@ export default function ProfileScreen() {
   const user = useSelector((s: RootState) => s.auth.user);
   const { profile: userProfile } = useUserProfile();
   const { cycle: cycleState, periodStats, cycleStats, dataQualityMeta } = useCycleInsights();
-  
+
   // ✅ Store backend profile data
   const [backendProfile, setBackendProfile] = useState<{
     fullName?: string | null;
@@ -126,33 +121,33 @@ export default function ProfileScreen() {
 
   // ✅ Get wellness goals (backend > Redux)
   const wellnessGoals = useMemo(() => {
-    return backendProfile?.wellnessGoals || 
-           userProfile?.wellnessGoals || 
-           [];
+    return backendProfile?.wellnessGoals ||
+      userProfile?.wellnessGoals ||
+      [];
   }, [backendProfile, userProfile]);
 
   // ✅ Get average cycle length (backend > Redux > cycleState)
   const averageCycleLength = useMemo(() => {
-    return backendProfile?.averageCycleLength || 
-           userProfile?.averageCycleLength || 
-           cycleState.profile.averageCycleLength || 
-           28;
+    return backendProfile?.averageCycleLength ||
+      userProfile?.averageCycleLength ||
+      cycleState.profile.averageCycleLength ||
+      28;
   }, [backendProfile, userProfile, cycleState.profile.averageCycleLength]);
 
   // ✅ Get average period length (backend > Redux > cycleState)
   const averagePeriodLength = useMemo(() => {
-    return backendProfile?.periodDuration || 
-           userProfile?.periodDuration || 
-           cycleState.profile.periodDuration || 
-           5;
+    return backendProfile?.periodDuration ||
+      userProfile?.periodDuration ||
+      cycleState.profile.periodDuration ||
+      5;
   }, [backendProfile, userProfile, cycleState.profile.periodDuration]);
 
   // ✅ Get luteal phase days (backend > Redux > cycleState)
   const lutealPhaseDays = useMemo(() => {
-    return backendProfile?.lutealPhaseDays || 
-           userProfile?.lutealPhaseDays || 
-           cycleState.profile.lutealPhaseDays || 
-           14;
+    return backendProfile?.lutealPhaseDays ||
+      userProfile?.lutealPhaseDays ||
+      cycleState.profile.lutealPhaseDays ||
+      14;
   }, [backendProfile, userProfile, cycleState.profile.lutealPhaseDays]);
 
   const phaseBadgeColor = useMemo(
@@ -220,20 +215,20 @@ export default function ProfileScreen() {
         accentColor={accentColor}
       />
 
-      <WellnessGoalsSection 
+      <WellnessGoalsSection
         wellnessGoals={wellnessGoals}
         theme={theme}
         accentColor={accentColor}
       />
 
-      <DataManagementSection 
-        onExport={exportData} 
+      <DataManagementSection
+        onExport={exportData}
         onClearAll={clearAllData}
         theme={theme}
         accentColor={accentColor}
       />
 
-      <SignOutButton 
+      <SignOutButton
         onPress={handleSignOut}
         theme={theme}
         accentColor={accentColor}
@@ -281,7 +276,7 @@ function ProfileHeader({
   onOpenSettings,
 }: ProfileHeaderProps) {
   const headerStyles = createHeaderStyles(theme, accentColor);
-  
+
   return (
     <LinearGradient colors={theme.headerGradient} style={headerStyles.header}>
       <View style={headerStyles.homeIconContainer}>
@@ -296,6 +291,7 @@ function ProfileHeader({
           <Settings size={28} color={accentColor} />
         </TouchableOpacity>
       </View>
+
 
       <View style={[headerStyles.profileHeaderContent, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
         <View
@@ -360,10 +356,31 @@ function CycleAnalyticsSection({
   const displayPeriodLength = periodStats.averagePeriodLength || averagePeriodLength;
   const statsStyles = createStatsStyles(theme, accentColor);
 
+  const cyclesLogged =
+    cycleStats.cyclesAnalyzed ||
+    periodStats.totalPeriods ||
+    0;
+
+  const currentYear = new Date().getFullYear();
+
   return (
     <View style={statsStyles.statsContainer}>
+      {/* My cycles summary card */}
+      <MyCyclesCard
+        theme={theme}
+        accentColor={accentColor}
+        dataQualityMeta={dataQualityMeta}
+        cyclesLogged={cyclesLogged}
+        averagePeriodLength={displayPeriodLength}
+        averageCycleLength={displayCycleLength}
+        year={currentYear}
+      />
+
+      {/* Detailed stats below */}
       <View style={statsStyles.sectionHeaderRow}>
-        <Text style={[statsStyles.sectionTitle, { color: theme.textPrimary }]}>Cycle Analytics</Text>
+        <Text style={[statsStyles.sectionTitle, { color: theme.textPrimary }]}>
+          Cycle Analytics
+        </Text>
         <View
           style={[
             statsStyles.qualityBadge,
@@ -379,13 +396,27 @@ function CycleAnalyticsSection({
       </View>
 
       <View style={statsStyles.statsGrid}>
-        <StatCard
-          icon={<Calendar size={24} color={accentColor} />}
-          iconBackground={addOpacityToHex(accentColor, 0.2)}
-          value={displayCycleLength}
-          label="Avg Cycle Length"
-          theme={theme}
-        />
+
+        <NeuPressable
+          borderRadius={20}
+          backgroundColor="#fff"
+          shadowColor={addOpacityToHex(accentColor, 0.1)}
+        >
+          <StatCard
+            icon={<Calendar size={24} color={accentColor} />}
+            iconBackground={addOpacityToHex(accentColor, 0.2)}
+            value={displayCycleLength}
+            label="Avg Cycle Length"
+            theme={theme}
+          />
+
+        </NeuPressable>
+
+        <NeuPressable
+          borderRadius={20}
+          backgroundColor="#fff"
+          shadowColor={addOpacityToHex(accentColor, 0.1)}
+        >
         <StatCard
           icon={<Heart size={24} color={accentColor} />}
           iconBackground={addOpacityToHex(accentColor, 0.2)}
@@ -393,13 +424,91 @@ function CycleAnalyticsSection({
           label="Avg Period Length"
           theme={theme}
         />
+        </NeuPressable>
+        <NeuPressable
+          borderRadius={20}
+          backgroundColor="#fff"
+          shadowColor={addOpacityToHex(accentColor, 0.1)}
+        >
         <StatCard
           icon={<BarChart3 size={24} color={accentColor} />}
           iconBackground={addOpacityToHex(accentColor, 0.2)}
           value={lutealPhaseDays}
-          label="Luteal Phase"
+          label="Luteals Phase"
           theme={theme}
         />
+        </NeuPressable>
+      </View>
+    </View>
+  );
+}
+
+type MyCyclesCardProps = {
+  theme: any;
+  accentColor: string;
+  dataQualityMeta: ReturnType<typeof useCycleInsights>['dataQualityMeta'];
+  cyclesLogged: number;
+  averagePeriodLength: number;
+  averageCycleLength: number;
+  year: number;
+};
+
+function MyCyclesCard({
+  theme,
+  accentColor,
+  dataQualityMeta,
+  cyclesLogged,
+  averagePeriodLength,
+  averageCycleLength,
+  year,
+}: MyCyclesCardProps) {
+  const styles = createMyCyclesCardStyles(theme, accentColor);
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.cardBackground }]}>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={[styles.title, { color: theme.textPrimary }]}>
+            My cycles
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {cyclesLogged} {cyclesLogged === 1 ? 'cycle logged' : 'cycles logged'}
+          </Text>
+        </View>
+        <View style={styles.headerBadge}>
+          <Text style={[styles.headerBadgeText, { color: dataQualityMeta.color }]}>
+
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.metricsRow}>
+        <View style={[styles.metricCard, { backgroundColor: '#ffe4f2' }]}>
+          <Text style={[styles.metricValue, { color: '#ec4899' }]}>
+            {averagePeriodLength || 0} Days
+          </Text>
+          <Text style={[styles.metricLabel, { color: '#ec4899' }]}>
+            Average period
+          </Text>
+        </View>
+
+        <View style={[styles.metricCard, { backgroundColor: '#fff7e5' }]}>
+          <Text style={[styles.metricValue, { color: '#d97706' }]}>
+            {averageCycleLength || 0} Days
+          </Text>
+          <Text style={[styles.metricLabel, { color: '#d97706' }]}>
+            Average cycle
+          </Text>
+        </View>
+      </View>
+
+
+
+
+      <View style={styles.footerRow}>
+        <Text style={[styles.yearText, { color: theme.textPrimary }]}>
+          {year}
+        </Text>
       </View>
     </View>
   );
@@ -415,14 +524,14 @@ type StatCardProps = {
 
 function StatCard({ icon, iconBackground, value, label, theme }: StatCardProps) {
   const statStyles = createStatCardStyles(theme);
-  
+
   return (
     <View style={[statStyles.statCard, { backgroundColor: theme.cardBackground }]}>
       <View style={{ backgroundColor: iconBackground, padding: 10, borderRadius: 45 }}>
         {icon}
       </View>
       <Text style={[statStyles.statNumber, { color: theme.textPrimary }]}>{value}</Text>
-      <Text style={[statStyles.statLabel, { color: theme.textSecondary }]}>{label}</Text>
+      <Text style={[statStyles.statLabel, { color: theme.textSecondary, width: 75 }]}>{label}</Text>
     </View>
   );
 }
@@ -435,13 +544,13 @@ type WellnessGoalsSectionProps = {
 
 function WellnessGoalsSection({ wellnessGoals, theme, accentColor }: WellnessGoalsSectionProps) {
   const goalsStyles = createGoalsStyles(theme, accentColor);
-  
+
   // ✅ Map goal IDs/strings to display labels
   const displayGoals = useMemo(() => {
     if (!wellnessGoals || wellnessGoals.length === 0) {
       return [];
     }
-    
+
     return wellnessGoals.map((goal) => {
       // If goal is already a label, use it; otherwise map from WELLNESS_GOAL_LABELS
       const label = WELLNESS_GOAL_LABELS[goal.toLowerCase()] || goal;
@@ -487,30 +596,46 @@ type DataManagementSectionProps = {
 
 function DataManagementSection({ onExport, onClearAll, theme, accentColor }: DataManagementSectionProps) {
   const dataStyles = createDataManagementStyles(theme, accentColor);
-  
+
   return (
     <View style={dataStyles.section}>
       <Text style={[dataStyles.sectionTitle, { color: theme.textPrimary }]}>Data Management</Text>
       <Text style={[dataStyles.sectionSubtitle, { color: theme.textSecondary }]}>Export or clear your cycle data</Text>
 
       <View style={dataStyles.actionButtons}>
-        <TouchableOpacity 
-          style={[dataStyles.actionButton, { backgroundColor: addOpacityToHex(theme.success, 0.1) }]} 
-          onPress={onExport}
-        >
-          <Download size={20} color={theme.success} />
-          <Text style={[dataStyles.actionButtonText, { color: theme.success }]}>Export Data</Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[dataStyles.actionButton, dataStyles.dangerButton, { backgroundColor: addOpacityToHex('#dc2626', 0.1) }]}
+        <NeuButton
+          title="Export Data"
+          onPress={onExport}
+          leftIcon={<Download color={theme.success} size={20} />}
+          textStyle={{
+            fontFamily: 'Bold',
+            color: theme.success,
+            fontSize: 16,
+            letterSpacing: 0.8
+          }}
+          type="normal"
+          // Duolingo Cardinal Red Palette
+          backgroundColor={"#e1f4f0"}
+          shadowColor={addOpacityToHex(theme.success, 0.4)}
+
+        />
+        <NeuButton
+          title="Clear All Data"
           onPress={onClearAll}
-        >
-          <Trash2 size={20} color="#dc2626" />
-          <Text style={[dataStyles.actionButtonText, dataStyles.dangerText]}>
-            Clear All Data
-          </Text>
-        </TouchableOpacity>
+          leftIcon={<Trash2 color="#ffffff" size={20} />}
+          textStyle={{
+            fontFamily: 'Bold',
+            color: '#ffffff',
+            fontSize: 16,
+            letterSpacing: 0.8
+          }}
+          type="normal"
+          backgroundColor="#FF4B4B"
+          shadowColor="#D33131"
+
+        />
+
       </View>
     </View>
   );
@@ -518,21 +643,35 @@ function DataManagementSection({ onExport, onClearAll, theme, accentColor }: Dat
 
 function SignOutButton({ onPress, theme, accentColor }: { onPress: () => void; theme: any; accentColor: string }) {
   const signOutStyles = createSignOutStyles(theme, accentColor);
-  
+
   return (
-    <TouchableOpacity 
-      style={[signOutStyles.signOutButton, { backgroundColor: accentColor }]} 
-      onPress={onPress}
-    >
-      <LogOut size={20} color="#fff" />
-      <Text style={signOutStyles.signOutText}>Sign Out</Text>
-    </TouchableOpacity>
+
+    <View style={signOutStyles.signOutButton}>
+
+
+      <NeuButton
+        title="Sign Out"
+        onPress={onPress}
+        textStyle={{
+          fontFamily: 'Bold',
+          color: '#ffffff',
+          fontSize: 16,
+          letterSpacing: 0.8
+        }}
+        leftIcon={<Download width={22} height={22} color={"#ffffff"} strokeWidth={3} />}
+        backgroundColor={accentColor}
+        shadowColor={darkenColor(accentColor, 10)}
+
+      />
+
+
+    </View>
   );
 }
 
 function PrivacyNote({ theme, accentColor }: { theme: any; accentColor: string }) {
   const privacyStyles = createPrivacyStyles(theme);
-  
+
   return (
     <View style={[privacyStyles.privacyNote, { backgroundColor: addOpacityToHex(accentColor, 0.08) }]}>
       <Text style={[privacyStyles.privacyText, { color: theme.textPrimary }]}>
@@ -578,7 +717,7 @@ const createHeaderStyles = (theme: any, accentColor: string) => StyleSheet.creat
 });
 
 const createStatsStyles = (theme: any, accentColor: string) => StyleSheet.create({
-  statsContainer: { margin: 20 },
+  statsContainer: { marginHorizontal: 20, marginBottom: 24 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   qualityBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   qualityBadgeText: { fontSize: 12, fontWeight: '600' },
@@ -587,10 +726,80 @@ const createStatsStyles = (theme: any, accentColor: string) => StyleSheet.create
 });
 
 const createStatCardStyles = (theme: any) => StyleSheet.create({
-  statCard: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center', elevation: 2, shadowColor: theme.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  statCard: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center', elevation: 2, shadowColor: addOpacityToHex(theme.accent, 0.2), shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   statNumber: { fontSize: 24, fontWeight: '700', marginTop: 8 },
-  statLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  statLabel: { fontSize: 12, fontWeight: '600',  textAlign: 'center' },
 });
+
+const createMyCyclesCardStyles = (theme: any, accentColor: string) =>
+  StyleSheet.create({
+    card: {
+      borderRadius: 24,
+      padding: 16,
+      marginTop: 16,
+      marginBottom: 16,
+      shadowColor: theme.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 18,
+      fontFamily: 'Bold',
+    },
+    subtitle: {
+      fontSize: 13,
+      marginTop: 4,
+    },
+    headerBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: addOpacityToHex(accentColor, 0.08),
+    },
+    headerBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    metricsRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 16,
+    },
+    metricCard: {
+      flex: 1,
+      borderRadius: 20,
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      justifyContent: 'center',
+    },
+    metricValue: {
+      fontSize: 18,
+      fontFamily: 'Bold',
+      marginBottom: 4,
+    },
+    metricLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    footerRow: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: addOpacityToHex(theme.border, 0.5),
+      paddingTop: 8,
+      marginTop: 4,
+    },
+    yearText: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+  });
 
 const createGoalsStyles = (theme: any, accentColor: string) => StyleSheet.create({
   section: { marginHorizontal: 20, marginBottom: 24 },
@@ -628,7 +837,7 @@ const createSignOutStyles = (theme: any, accentColor: string) => StyleSheet.crea
     gap: 8,
     paddingVertical: 14,
     borderRadius: 16,
-    marginHorizontal: 20,
+    marginHorizontal: 64,
     marginTop: 8,
   },
   signOutText: { color: '#fff', fontSize: 16, fontWeight: '600' },

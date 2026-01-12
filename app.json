@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "kitfitx",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -56,7 +56,7 @@
     "extra": {
       "EXPO_PUBLIC_SUPABASE_URL": "https://iranxjzqzoknigoskdkn.supabase.co",
       "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlyYW54anpxem9rbmlnb3NrZGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MzUwMjYsImV4cCI6MjA3MzExMTAyNn0.zE7Bzd_6-gZLixFqbeYnXnSN09jPocCfMCNixJlfJ5A",
-      "EXPO_PUBLIC_API_URL": "http://localhost:4000",
+      "EXPO_PUBLIC_API_URL": "https://kitfitx.onrender.com",
       "router": {},
       "eas": {
         "projectId": "bc673c13-9627-4050-8c82-df968075e1ab"

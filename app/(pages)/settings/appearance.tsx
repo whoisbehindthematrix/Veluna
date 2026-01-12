@@ -38,8 +38,8 @@ const PHASE_COLORS = [
 
 // Default color themes/presets
 const DEFAULT_COLOR_THEMES = [
-  { color: '#f97316', name: 'Orange', label: 'Default' },
   { color: '#ec4899', name: 'Pink', label: 'Pink' },
+  { color: '#e42a50', name: 'BabyPink', label: 'Default' },
   { color: '#3b82f6', name: 'Blue', label: 'Blue' },
   { color: '#10b981', name: 'Green', label: 'Green' },
 ];

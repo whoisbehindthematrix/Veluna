@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { View, Dimensions, Text, StyleSheet } from 'react-native';
+import { View, Dimensions, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { WeekCalendar, CalendarProvider } from 'react-native-calendars';
 import type { DateData } from 'react-native-calendars';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/src/store';
 import { phaseRecommendations } from '@/data/phaseRecommendation';
 import { useTheme } from '@/src/context/ThemeContext';
+// Tooltip will be shown via custom overlay
+
 
 type Phase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
 
@@ -38,6 +40,7 @@ export default function WeekPhaseStrip({
   // State for calendar width and current date
   const [calendarWidth, setCalendarWidth] = useState<number>();
   const [currentDate, setCurrentDate] = useState(toISO(new Date()));
+  const [tooltipDate, setTooltipDate] = useState<string | null>(null);
   const monthYear = useMemo(() => {
     // Parse date string (YYYY-MM-DD) as local time to avoid timezone issues
     const [year, month, day] = currentDate.split('-').map(Number);
@@ -95,6 +98,85 @@ export default function WeekPhaseStrip({
     if (cycleDay > follicularEnd && cycleDay <= ovulatoryEnd) return 'ovulatory';
     return 'luteal';
   }
+
+  // Get cycle day for a date
+  function getCycleDay(dateISO: string): number {
+    const { averageCycleLength, lastPeriodStart } = cycle.profile;
+    const lastPeriod = lastPeriodStart ||
+      cycle.entries.filter(e => e.isPeriod)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
+
+    if (!lastPeriod) return 1;
+
+    const [lastYear, lastMonth, lastDay] = lastPeriod.split('-').map(Number);
+    const [targetYear, targetMonth, targetDay] = dateISO.split('-').map(Number);
+    const a = new Date(lastYear, lastMonth - 1, lastDay);
+    const b = new Date(targetYear, targetMonth - 1, targetDay);
+    const daysSince = Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+    let cycleDay = daysSince + 1;
+
+    if (cycleDay <= 0) {
+      cycleDay = ((cycleDay % averageCycleLength) + averageCycleLength) % averageCycleLength + 1;
+    }
+    if (cycleDay > averageCycleLength) {
+      cycleDay = ((cycleDay - 1) % averageCycleLength) + 1;
+    }
+
+    return cycleDay;
+  }
+
+  const todayISO = useMemo(() => toISO(new Date()), []);
+
+  // Generate tooltip content for a date
+  const getTooltipContent = useCallback((dateISO: string) => {
+    const entry = cycle.entries.find(e => e.date === dateISO);
+    const phase = getPhaseForDate(dateISO);
+    const cycleDay = getCycleDay(dateISO);
+    const phaseInfo = phaseRecommendations[phase];
+    const isPeriod = !!entry?.isPeriod;
+    const isToday = dateISO === todayISO;
+
+    const [year, month, day] = dateISO.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+    const parts: string[] = [];
+
+    if (isToday) {
+      parts.push('📅 Today');
+    }
+
+    parts.push(`Day ${cycleDay} of cycle`);
+    parts.push(`Phase: ${phaseInfo?.name || phase}`);
+
+    if (isPeriod) {
+      parts.push(`🩸 Period day`);
+      if (entry?.flowIntensity) {
+        parts.push(`Flow: ${entry.flowIntensity}`);
+      }
+    }
+
+    if (entry?.symptoms) {
+      const symptomList: string[] = [];
+      if (entry.symptoms.mood) symptomList.push(`Mood: ${entry.symptoms.mood}/5`);
+      if (entry.symptoms.cramps) symptomList.push(`Cramps: ${entry.symptoms.cramps}/5`);
+      if (entry.symptoms.energy) symptomList.push(`Energy: ${entry.symptoms.energy}/5`);
+      if (entry.symptoms.bloating) symptomList.push(`Bloating: ${entry.symptoms.bloating}/5`);
+      if (entry.symptoms.headache) symptomList.push(`Headache: ${entry.symptoms.headache}/5`);
+      if (entry.symptoms.breastTenderness) symptomList.push(`Breast tenderness: ${entry.symptoms.breastTenderness}/5`);
+      
+      if (symptomList.length > 0) {
+        parts.push('Symptoms:');
+        parts.push(...symptomList);
+      }
+    }
+
+    if (entry?.notes) {
+      parts.push(`Note: ${entry.notes}`);
+    }
+
+    return parts.join('\n');
+  }, [cycle.entries, cycle.profile, todayISO, getPhaseForDate, getCycleDay]);
 
   // Recalculate marked dates when current date changes
   const marked = useMemo(() => {
@@ -168,8 +250,6 @@ export default function WeekPhaseStrip({
     setCurrentDate(date);
   }, []);
 
-  const todayISO = toISO(new Date());
-
   // Create calendar theme with theme colors
   const calendarTheme = useMemo(() => ({
     calendarBackground: 'transparent',
@@ -180,6 +260,16 @@ export default function WeekPhaseStrip({
     textMonthFontWeight: '800' as const,
     textDayHeaderFontWeight: '700' as const,
   }), [theme]);
+
+  // Handle day long press to show tooltip
+  const handleDayLongPress = useCallback((day: DateData) => {
+    setTooltipDate(day.dateString);
+  }, []);
+
+  // Enhanced onDayPress that also handles tooltip
+  const handleDayPress = useCallback((day: DateData) => {
+    onDayPress?.(day);
+  }, [onDayPress]);
 
   return (
     <View
@@ -205,11 +295,38 @@ export default function WeekPhaseStrip({
           markingType="custom"
           markedDates={marked}
           allowShadow={false}
-          onDayPress={onDayPress}
+          onDayPress={(day) => {
+            handleDayPress(day);
+            // Show tooltip on press (you can change this to long press if needed)
+            setTooltipDate(day.dateString);
+            // Auto-hide after 3 seconds
+            setTimeout(() => setTooltipDate(null), 3000);
+          }}
           theme={calendarTheme}
           style={styles.calendar}
         />
       </CalendarProvider>
+
+      {/* Custom Tooltip Overlay */}
+      {tooltipDate && (
+        <View style={styles.tooltipOverlay}>
+          <View style={[styles.tooltipContainer, { 
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+            shadowColor: accentColor,
+          }]}>
+            <Text style={[styles.tooltipText, { color: theme.textPrimary }]}>
+              {getTooltipContent(tooltipDate)}
+            </Text>
+            <TouchableOpacity
+              style={styles.tooltipClose}
+              onPress={() => setTooltipDate(null)}
+            >
+              <Text style={[styles.tooltipCloseText, { color: theme.textSecondary }]}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -224,8 +341,49 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 16,
     borderRadius: 12,
+    position: 'relative',
   },
   calendar: {
     borderRadius: 12,
+  },
+  tooltipOverlay: {
+    position: 'absolute',
+    top: -10,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    alignItems: 'center',
+    pointerEvents: 'box-none',
+  },
+  tooltipContainer: {
+    padding: 14,
+    borderRadius: 12,
+    maxWidth: 280,
+    minWidth: 200,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    position: 'relative',
+  },
+  tooltipText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  tooltipClose: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  tooltipCloseText: {
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

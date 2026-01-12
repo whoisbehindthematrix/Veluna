@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import AppButton from '@/components/core-components/Button';
+import NeuButton from '@/components/core-components/NeuButton';
 
 type QuickActionsProps = {
 	onLogSymptoms: () => void;
@@ -25,7 +25,23 @@ export default function QuickActions({ onLogSymptoms }: QuickActionsProps) {
 					>
 						<Text style={styles.actionText}>Food</Text>
 						<Text style={{ color: '#ffffff9d' }}>Tracking</Text>
-						<AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
+						<View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+							<NeuButton 
+								title="Go" 
+								onPress={() => {}}
+								rightIcon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />}
+								textStyle={{
+									fontFamily: 'Bold',
+									color: '#ffffff',
+									fontSize: 12,
+									letterSpacing: 0.8
+								}}
+								backgroundColor="#ffffff33"
+								shadowColor="#ffffff55"
+								fullWidth={false}
+								minHeight={32}
+							/>
+						</View>
 						<Image source={require('../assets/images/food.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 6, right: -2 }} resizeMode='contain' />
 					</TouchableOpacity>
 
@@ -35,7 +51,23 @@ export default function QuickActions({ onLogSymptoms }: QuickActionsProps) {
 					>
 						<Text style={styles.actionText}>Exercise</Text>
 						<Text style={{ color: '#ffffff9d' }}>Tracking</Text>
-						<AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
+						<View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+							<NeuButton 
+								title="Go" 
+								onPress={() => {}}
+								rightIcon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />}
+								textStyle={{
+									fontFamily: 'Bold',
+									color: '#ffffff',
+									fontSize: 12,
+									letterSpacing: 0.8
+								}}
+								backgroundColor="#ffffff33"
+								shadowColor="#ffffff55"
+								fullWidth={false}
+								minHeight={32}
+							/>
+						</View>
 						<Image source={require('../assets/images/dumbbel.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 8, right: -2 }} resizeMode='contain' />
 					</TouchableOpacity>
 				</View>
@@ -46,7 +78,23 @@ export default function QuickActions({ onLogSymptoms }: QuickActionsProps) {
 					>
 						<Text style={styles.actionText}>Logs</Text>
 						<Text style={{ color: '#ffffff9d' }}>Periods</Text>
-						<AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
+						<View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+							<NeuButton 
+								title="Go" 
+								onPress={() => {}}
+								rightIcon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />}
+								textStyle={{
+									fontFamily: 'Bold',
+									color: '#ffffff',
+									fontSize: 12,
+									letterSpacing: 0.8
+								}}
+								backgroundColor="#ffffff33"
+								shadowColor="#ffffff55"
+								fullWidth={false}
+								minHeight={32}
+							/>
+						</View>
 						<Image source={require('../assets/images/menstal.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 6, right: 0 }} resizeMode='contain' />
 					</TouchableOpacity>
 
@@ -56,7 +104,23 @@ export default function QuickActions({ onLogSymptoms }: QuickActionsProps) {
 					>
 						<Text style={styles.actionText}>Note</Text>
 						<Text style={{ color: '#ffffff9d' }}>take note</Text>
-						<AppButton title="Go" variant="secondary" size="xs" style={{ marginTop: 8, backgroundColor: '#ffffff33', borderColor: '#ffffff55', alignSelf: 'flex-start' }} iconPosition='right' icon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />} />
+						<View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+							<NeuButton 
+								title="Go" 
+								onPress={() => {}}
+								rightIcon={<ChevronRight size={16} color="#ffffff" strokeWidth={3} />}
+								textStyle={{
+									fontFamily: 'Bold',
+									color: '#ffffff',
+									fontSize: 12,
+									letterSpacing: 0.8
+								}}
+								backgroundColor="#ffffff33"
+								shadowColor="#ffffff55"
+								fullWidth={false}
+								minHeight={32}
+							/>
+						</View>
 						<Image source={require('../assets/images/notes.png')} style={{ width: 80, height: 100, position: 'absolute', bottom: 8, right: 2 }} resizeMode='contain' />
 					</TouchableOpacity>
 				</View>

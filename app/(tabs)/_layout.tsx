@@ -1,85 +1,84 @@
-import { Tabs } from 'expo-router';
+import React from 'react';
+import { View } from 'react-native';
+import { Drawer } from 'expo-router/drawer';
 import { Flower as Home, Calendar, BookOpen, User, Apple, Dumbbell } from 'lucide-react-native';
 import { useTheme } from '@/src/context/ThemeContext';
+import CustomDrawerContent from '@/components/core-components/CustomDrawerContent';
+import CustomTabBar from '@/components/core-components/CustomTabBar';
 
-export default function TabLayout() {
+export default function DrawerLayout() {
   const { theme, accentColor } = useTheme();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: theme.cardBackground,
-          borderTopWidth: 1,
-          borderTopColor: theme.border,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 100,
-          paddingHorizontal: 2,
-        },
-        tabBarActiveTintColor: accentColor,
-        tabBarInactiveTintColor: theme.textSecondary,
-        tabBarLabelStyle: {
-          fontSize: 13,
-          fontWeight: '700',
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} />
-          ),
+    <View style={{ flex: 1 }}>
+      <Drawer
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
+        screenOptions={{
+          headerShown: false,
+          drawerStyle: {
+            backgroundColor: theme.cardBackground,
+            width: '85%',
+          },
+          drawerActiveTintColor: accentColor,
+          drawerInactiveTintColor: theme.textSecondary,
+          drawerLabelStyle: {
+            fontSize: 16,
+            fontWeight: '600',
+          },
+          drawerType: 'slide',
+          overlayColor: 'rgba(0, 0, 0, 0.5)',
         }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: 'Calendar',
-          tabBarIcon: ({ size, color }) => (
-            <Calendar size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="food"
-        options={{
-          title: 'Food',
-          tabBarIcon: ({ size, color }) => (
-            <Apple size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="exercise"
-        options={{
-          title: 'Exercise',
-          tabBarIcon: ({ size, color }) => (
-            <Dumbbell size={size} color={color} />
-          ),
-        }}
-      />
-      {/* <Tabs.Screen
-        name="tips"
-        options={{
-          title: 'Tips',
-          tabBarIcon: ({ size, color }) => (
-            <BookOpen size={size} color={color} />
-          ),
-        }}
-      /> */}
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ size, color }) => (
-            <User size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        
+        <Drawer.Screen
+          name="calendar"
+          options={{
+            title: 'Calendar',
+            drawerIcon: ({ size, color }) => (
+              <Calendar size={size} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="food"
+          options={{
+            title: 'Food',
+            drawerIcon: ({ size, color }) => (
+              <Apple size={size} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="index"
+          options={{
+            title: 'Home',
+            drawerIcon: ({ size, color }) => (
+              <Home size={size} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="exercise"
+          options={{
+            title: 'Exercise',
+            drawerIcon: ({ size, color }) => (
+              <Dumbbell size={size} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            drawerIcon: ({ size, color }) => (
+              <User size={size} color={color} />
+            ),
+          }}
+        />
+      </Drawer>
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10 }}>
+        <CustomTabBar />
+      </View>
+    </View>
   );
 }

@@ -3,8 +3,10 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api, { saveTokens, removeTokens, getAccessToken, getRefreshToken } from '@/lib/api';
 import { resetCycle } from './cycleSlice';
 import { resetProfile, setProfile } from './userProfileSlice';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { supabase } from '@/lib/supabase';
 
-// Types
 type User = {
   id: string;
   email?: string | null;
@@ -110,49 +112,51 @@ export const signInWithEmail = createAsyncThunk(
   }
 );
 
-// export const signInWithGoogle = createAsyncThunk(
-//   'auth/signInWithGoogle',
-//   async (_, { rejectWithValue }) => {
-//     try {
-//       const redirectUrl = Linking.createURL('/');
 
-//       const { data, error } = await supabase.auth.signInWithOAuth({
-//         provider: 'google',
-//         options: {
-//           redirectTo: redirectUrl,
-//           skipBrowserRedirect: false,
-//         },
-//       });
+export const signInWithGoogle = createAsyncThunk(
+  'auth/signInWithGoogle',
+  async (_, { rejectWithValue }) => {
+    try {
+      const redirectTo = Linking.createURL('auth-callback');
 
-//       if (error) throw error;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+        },
+      });
 
-//       // Open browser for OAuth
-//       if (data?.url) {
-//         const result = await WebBrowser.openAuthSessionAsync(
-//           data.url,
-//           redirectUrl
-//         );
+      if (error) throw error;
 
-//         if (result.type === 'success') {
-//           const url = result.url;
-//           const params = new URL(url).searchParams;
-//           const access_token = params.get('access_token');
-//           const refresh_token = params.get('refresh_token');
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo
+      );
 
-//           if (access_token && refresh_token) {
-//             await saveRefreshToken(refresh_token);
-//             const { data: sessionData } = await supabase.auth.getSession();
-//             return sessionData;
-//           }
-//         }
-//       }
+      if (result.type !== 'success') {
+        throw new Error('Google auth cancelled');
+      }
 
-//       return data;
-//     } catch (err: any) {
-//       return rejectWithValue(err.message || 'Google sign-in failed');
-//     }
-//   }
-// );
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      if (!sessionData.session) {
+        throw new Error('No session after Google login');
+      }
+
+      await saveTokens(
+        sessionData.session.access_token,
+        sessionData.session.refresh_token!
+      );
+
+      return {
+        user: sessionData.session.user,
+        session: sessionData.session,
+      };
+    } catch (e: any) {
+      return rejectWithValue(e.message || 'Google sign-in failed');
+    }
+  }
+);
 
 export const signOut = createAsyncThunk(
   'auth/signOut',

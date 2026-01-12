@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert, TouchableOpacity, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Zap } from 'lucide-react-native';
+import { Zap, Menu, GalleryHorizontalEnd, PanelRight, PanelRightClose, Sun, Moon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import HormoneChartScreen from '../../src/screens/HormoneChartScreen';
 import { phaseRecommendations } from '@/data/phaseRecommendation';
 import PhaseCard from '@/components/core-components/PhaseCard';
@@ -14,19 +16,22 @@ import Logo from '@/assets/images/logo';
 import PhaseDetailModal from '@/components/PhaseDetailModal';
 import QuickAction from '@/components/QuickAction';
 import { useTheme } from '@/src/context/ThemeContext';
+import { CoverFlowCarousel } from '@/components/animeted/coverflow-card';
 
 export default function HomeScreen() {
   const { cycleState, dispatch } = useCycleRedux();
-  const { theme } = useTheme();
+  const { theme, setThemeName } = useTheme();
   const router = useRouter();
+  const navigation = useNavigation();
+  const { accentColor, themeName } = useTheme();
   const today = new Date().toISOString().split('T')[0];
   const [modalVisible, setModalVisible] = useState(false);
-  
+
   const dynamicStyles = useMemo(() => createStyles(theme), [theme]);
 
   const currentPhaseData =
     phaseRecommendations[
-      (cycleState.currentPhase.name as unknown) as keyof typeof phaseRecommendations
+    (cycleState.currentPhase.name as unknown) as keyof typeof phaseRecommendations
     ] || phaseRecommendations['menstrual'];
 
   const phaseColor = currentPhaseData.color;
@@ -56,6 +61,16 @@ export default function HomeScreen() {
     return diff;
   };
 
+  const Images = [
+'https://img.freepik.com/premium-photo/person-is-writing-calendar-with-pencil-it_1115474-165049.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80', 
+'https://img.freepik.com/premium-photo/portrait-outdoor-woman-with-fitness-arms-crossed-smile-with-wellness-energy-workout-face-person-athlete-with-confidence-forest-training-with-happiness-health-exercise_590464-237328.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
+'https://img.freepik.com/premium-photo/calendar-with-date-april-date-may_1115474-165600.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
+'https://img.freepik.com/free-photo/woman-showing-her-muscle_23-2148666475.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
+'https://img.freepik.com/premium-photo/menstrual-cycle-mobile-app-smartphone-screen-pink-background-top-view_101969-2912.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
+'https://img.freepik.com/free-photo/athletic-woman-practicing-sport-outdoor_23-2148196801.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80'
+  ];
+  
+
   return (
     <>
       <LinearGradient
@@ -64,39 +79,70 @@ export default function HomeScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       >
+        {/* Header with Menu Button */}
+
+
         <ScrollView
           style={dynamicStyles.container}
           showsVerticalScrollIndicator={false}
         >
-        {/* Logo */}
-        <View style={dynamicStyles.logoContainer}>
-          <Logo color={phaseColor} width={210} height={80} />
-        </View>
-        <WeekPhaseStrip firstDay={0} />
+          <View style={dynamicStyles.headerContainer}>
+            <TouchableOpacity
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={[dynamicStyles.menuButton,]}
+              activeOpacity={0.7}
+            >
+              <PanelRightClose size={20} strokeWidth={2} color={theme.textPrimary} />
+            </TouchableOpacity>
+            <View style={dynamicStyles.logoContainer}>
+              <Logo color={phaseColor} width={210} height={80} />
+            </View>
+            <TouchableOpacity
+              onPress={() => 
+                // setThemeName(themeName === 'light' ? 'dark' : 'light')
+                {}
+              }
+              style={dynamicStyles.themeToggleButton}
+              activeOpacity={0.7}
+            >
+              {themeName === 'light' ? (
+                <Moon size={20} strokeWidth={2} color={theme.textPrimary} />
+              ) : (
+                <Sun size={20} strokeWidth={2} color={theme.textPrimary} />
+              )}
+            </TouchableOpacity>
+          </View>
+          {/* Logo */}
 
-        {/* Current Phase Card - Now Clickable */}
-        <View style={dynamicStyles.topMargin}>
-          <PhaseCard
-            phaseName={currentPhaseData.name}
-            emoji={currentPhaseData.foods.icon}
-            cycleDay={cycleState.cycleDay}
-            daysUntilNextPeriod={getDaysUntilNextPeriod()}
-            image={currentPhaseData.image}
-            phaseColor={currentPhaseData.color}
-            onPress={() => setModalVisible(true)}
-          />
-        </View>
+          <WeekPhaseStrip firstDay={0} />
 
-        {/* Quick Actions */}
-        <QuickAction />
+          {/* Current Phase Card - Now Clickable */}
+          <View style={dynamicStyles.topMargin}>
+            <PhaseCard
+              phaseName={currentPhaseData.name}
+              emoji={currentPhaseData.foods.icon}
+              cycleDay={cycleState.cycleDay}
+              daysUntilNextPeriod={getDaysUntilNextPeriod()}
+              image={currentPhaseData.image}
+              phaseColor={currentPhaseData.color}
+              onPress={() => setModalVisible(true)}
+            />
+          </View>
 
-        {/* Hormone Chart */}
-        <View style={dynamicStyles.hormoneChartContainer}>
-          <HormoneChartScreen />
-        </View>
+          {/* Quick Actions */}
+          <QuickAction />
 
-        {/* Today's Recommendations */}
-        {/* <View style={styles.section}>
+          {/* Hormone Chart */}
+          <View style={dynamicStyles.hormoneChartContainer}>
+            <HormoneChartScreen />
+          </View>
+
+          <View style={{height: 280, alignContent: 'center', justifyContent: 'center', marginBottom: 200, backgroundColor: theme.background}}>
+            <CoverFlowCarousel images={Images} />
+          </View>
+
+          {/* Today'sv  Recommendations */}
+          {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>Today's Recommendations</Text>
           <View style={styles.recommendationsBlock}>
             <View style={styles.recommendationItem}>
@@ -123,8 +169,8 @@ export default function HomeScreen() {
           </View>
         </View> */}
 
-        {/* Today's Tips */}
-        {/* <View style={[styles.section, { marginBottom: 100 }]}>
+          {/* Today's Tips */}
+          {/* <View style={[styles.section, { marginBottom: 100 }]}>
           <Text style={styles.sectionTitle}>Phase Tips</Text>
           <View style={styles.tipsCard}>
             <Zap size={20} color="#eab308" />
@@ -159,24 +205,49 @@ const createStyles = (theme: any) => StyleSheet.create({
   gradientContainer: {
     flex: 1,
   },
-  container: { 
+  container: {
     flex: 1,
+  },
+  headerContainer: {
+    paddingTop: 40,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  menuButton: {
+    paddingTop: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: 20,
+    flex: 1,
   },
-  topMargin: { 
-    marginTop: 0 
+  themeToggleButton: {
+    paddingTop: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topMargin: {
+    marginTop: 0
   },
   hormoneChartContainer: {
     marginTop: 12,
   },
-  section: { 
-    marginHorizontal: 20, 
-    marginBottom: 24 
+  section: {
+    marginHorizontal: 20,
+    marginBottom: 24
   },
   sectionTitle: {
     fontSize: 18,
@@ -188,25 +259,25 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 16,
     gap: 16,
   },
-  recommendationItem: { 
-    flexDirection: 'row', 
-    alignItems: 'flex-start', 
-    gap: 12 
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12
   },
-  recommendationEmoji: { 
-    fontSize: 24 
+  recommendationEmoji: {
+    fontSize: 24
   },
-  recommendationContent: { 
-    flex: 1 
+  recommendationContent: {
+    flex: 1
   },
   recommendationTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
-  recommendationText: { 
-    fontSize: 14, 
-    lineHeight: 20 
+  recommendationText: {
+    fontSize: 14,
+    lineHeight: 20
   },
   tipsCard: {
     padding: 20,
@@ -216,12 +287,12 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: 12,
     borderLeftWidth: 4,
   },
-  tipsContent: { 
-    flex: 1, 
-    gap: 8 
+  tipsContent: {
+    flex: 1,
+    gap: 8
   },
-  tipText: { 
-    fontSize: 14, 
-    lineHeight: 20 
+  tipText: {
+    fontSize: 14,
+    lineHeight: 20
   },
 });

@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { useApp } from '../context/AppContext';
 import HormoneChart from '../components/HormoneChart';
 import { estimateHormonesForCycle } from '../lib/hormoneEngine';
-import AppButton from '@/components/core-components/Button';
 import AppText from '@/components/core-components/AppText';
 import { useTheme } from '@/src/context/ThemeContext';
 

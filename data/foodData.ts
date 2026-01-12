@@ -5,6 +5,8 @@ export interface FoodItem {
   carbs: number;
   fat: number;
   category: string;
+  // Optional image URL (used for global foods from backend)
+  imageUrl?: string;
 }
 
 export const commonFoods: FoodItem[] = [

@@ -18,6 +18,8 @@ import AppText from './AppText';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { CycleEntry, QuickNote } from '@/src/store/slices/cycleSlice';
 import type { SymptomState } from './SymptomTrackerModal';
+import NeuPressable from './NeuPressable';
+import { addOpacityToHex } from '@/src/utils';
 
 // ============================================================================
 // TYPES
@@ -55,6 +57,17 @@ export default function DateActionModal({
   const { theme, accentColor } = useTheme();
   const isDatePeriod = entry?.isPeriod ?? false;
   
+  // Check if date is in the future
+  const isFutureDate = useMemo(() => {
+    if (!selectedDate) return false;
+    const today = new Date().toISOString().split('T')[0];
+    const selectedDateObj = new Date(selectedDate);
+    const todayObj = new Date(today);
+    selectedDateObj.setHours(0, 0, 0, 0);
+    todayObj.setHours(0, 0, 0, 0);
+    return selectedDateObj > todayObj;
+  }, [selectedDate]);
+  
   const dynamicStyles = useMemo(() => createStyles(theme, accentColor), [theme, accentColor]);
 
   const formattedDate = useMemo(() => {
@@ -82,17 +95,22 @@ export default function DateActionModal({
       <View style={dynamicStyles.modalOverlay}>
         <View style={[dynamicStyles.modalContent, { backgroundColor: theme.cardBackground }]}>
           {/* Header */}
-          <View style={[dynamicStyles.modalHeader, { borderBottomColor: theme.border }]}>
+          <View style={[dynamicStyles.modalHeader, { borderBottomColor: addOpacityToHex(accentColor, 0.2) }]}>
             <View>
               <Text style={[dynamicStyles.modalTitle, { color: theme.textPrimary }]}>{formattedDate?.full || ''}</Text>
               <Text style={[dynamicStyles.modalSubtitle, { color: theme.textSecondary }]}>{formattedDate?.year || ''}</Text>
             </View>
-            <TouchableOpacity 
-              style={[dynamicStyles.modalCloseButton, { backgroundColor: `${accentColor}20` }]} 
+            <NeuPressable
               onPress={onClose}
+              backgroundColor={theme.cardBackground}
+              shadowColor={accentColor}
+              borderRadius={18}
+              pressDepth={4}
+              style={dynamicStyles.modalCloseButtonWrapper}
+              contentStyle={[dynamicStyles.modalCloseButtonContent, { borderColor: accentColor, borderWidth: 2 }]}
             >
               <X size={20} color={accentColor} />
-            </TouchableOpacity>
+            </NeuPressable>
           </View>
 
           {/* Quick Actions */}
@@ -100,46 +118,69 @@ export default function DateActionModal({
             <Text style={[dynamicStyles.modalSectionTitle, { color: theme.textPrimary }]}>Quick Actions</Text>
             <View style={dynamicStyles.modalActionsGrid}>
               {isDatePeriod ? (
-                <TouchableOpacity
-                  style={[dynamicStyles.modalActionCard, { backgroundColor: '#fee2e2', borderColor: '#fecaca' }]}
+                <NeuPressable
                   onPress={onUnmarkPeriod}
+                  backgroundColor={theme.cardBackground}
+                  shadowColor="#dc2626"
+                  borderRadius={16}
+                  pressDepth={6}
+                  style={dynamicStyles.modalActionCardWrapper}
+                  contentStyle={dynamicStyles.modalActionCardContent}
                 >
-                  <View style={[dynamicStyles.modalActionIcon, { backgroundColor: '#fee2e2' }]}>
+                  <View style={[dynamicStyles.modalActionIcon, { backgroundColor: '#fee2e2', borderColor: '#dc2626' }]}>
                     <X size={22} color="#dc2626" />
                   </View>
                   <Text style={[dynamicStyles.modalActionLabel, { color: theme.textPrimary }]}>Unmark Period</Text>
-                </TouchableOpacity>
+                </NeuPressable>
               ) : (
-                <TouchableOpacity
-                  style={[dynamicStyles.modalActionCard, { backgroundColor: '#fce7f320', borderColor: '#fbcfe820' }]}
-                  onPress={onLogPeriod}
+                <NeuPressable
+                  onPress={isFutureDate ? undefined : onLogPeriod}
+                  disabled={isFutureDate}
+                  backgroundColor={theme.cardBackground}
+                  shadowColor={isFutureDate ? '#9ca3af' : '#ec4899'}
+                  borderRadius={16}
+                  pressDepth={6}
+                  style={[dynamicStyles.modalActionCardWrapper, { opacity: isFutureDate ? 0.5 : 1 }]}
+                  contentStyle={dynamicStyles.modalActionCardContent}
                 >
-                  <View style={[dynamicStyles.modalActionIcon, { backgroundColor: '#fce7f3' }]}>
-                    <Droplets size={22} color="#ec4899" />
+                  <View style={[dynamicStyles.modalActionIcon, { backgroundColor: isFutureDate ? '#f3f4f6' : '#fce7f3', borderColor: isFutureDate ? '#9ca3af' : '#ec4899' }]}>
+                    <Droplets size={22} color={isFutureDate ? '#9ca3af' : '#ec4899'} />
                   </View>
-                  <Text style={[dynamicStyles.modalActionLabel, { color: theme.textPrimary }]}>Log Period</Text>
-                </TouchableOpacity>
+                  <Text style={[dynamicStyles.modalActionLabel, { color: isFutureDate ? theme.textSecondary : theme.textPrimary }]}>
+                    {isFutureDate ? 'Past dates only' : 'Log Period'}
+                  </Text>
+                </NeuPressable>
               )}
 
-              <TouchableOpacity
-                style={[dynamicStyles.modalActionCard, { backgroundColor: '#f5f3ff20', borderColor: '#ede9fe20' }]}
+              <NeuPressable
                 onPress={onOpenSymptomTracker}
+                backgroundColor={theme.cardBackground}
+                shadowColor="#8b5cf6"
+                borderRadius={16}
+                pressDepth={6}
+                style={dynamicStyles.modalActionCardWrapper}
+                contentStyle={dynamicStyles.modalActionCardContent}
               >
-                <View style={[dynamicStyles.modalActionIcon, { backgroundColor: '#ede9fe' }]}>
+                <View style={[dynamicStyles.modalActionIcon, { backgroundColor: '#ede9fe', borderColor: '#8b5cf6' }]}>
                   <Plus size={22} color="#8b5cf6" />
                 </View>
                 <Text style={[dynamicStyles.modalActionLabel, { color: theme.textPrimary }]}>Symptoms</Text>
-              </TouchableOpacity>
+              </NeuPressable>
 
-              <TouchableOpacity
-                style={[dynamicStyles.modalActionCard, { backgroundColor: '#f0fdf420', borderColor: '#dcfce720' }]}
+              <NeuPressable
                 onPress={onOpenQuickNoteModal}
+                backgroundColor={theme.cardBackground}
+                shadowColor="#10b981"
+                borderRadius={16}
+                pressDepth={6}
+                style={dynamicStyles.modalActionCardWrapper}
+                contentStyle={dynamicStyles.modalActionCardContent}
               >
-                <View style={[dynamicStyles.modalActionIcon, { backgroundColor: '#dcfce7' }]}>
+                <View style={[dynamicStyles.modalActionIcon, { backgroundColor: '#dcfce7', borderColor: '#10b981' }]}>
                   <FileText size={22} color="#10b981" />
                 </View>
                 <Text style={[dynamicStyles.modalActionLabel, { color: theme.textPrimary }]}>Quick Note</Text>
-              </TouchableOpacity>
+              </NeuPressable>
             </View>
           </View>
 
@@ -153,13 +194,18 @@ export default function DateActionModal({
                 contentContainerStyle={dynamicStyles.modalNotesScroll}
               >
                 {quickNotes.map((note) => (
-                  <TouchableOpacity
+                  <NeuPressable
                     key={note.id}
-                    style={dynamicStyles.modalNoteCard}
                     onPress={() => onEditQuickNote(note)}
+                    backgroundColor={theme.cardBackground}
+                    shadowColor="#10b981"
+                    borderRadius={14}
+                    pressDepth={5}
+                    style={dynamicStyles.modalNoteCardWrapper}
+                    contentStyle={dynamicStyles.modalNoteCardContent}
                   >
                     {note.icon && (
-                      <View style={dynamicStyles.modalNoteIconBadge}>
+                      <View style={[dynamicStyles.modalNoteIconBadge, { backgroundColor: addOpacityToHex('#10b981', 0.15), borderColor: '#10b981' }]}>
                         <Text style={dynamicStyles.modalNoteIcon}>{note.icon}</Text>
                       </View>
                     )}
@@ -170,11 +216,11 @@ export default function DateActionModal({
                       {note.text}
                     </Text>
                     {note.reminder && (
-                      <View style={dynamicStyles.modalNoteReminder}>
-                        <Text style={dynamicStyles.modalNoteReminderText}>🔔</Text>
+                      <View style={[dynamicStyles.modalNoteReminder, { backgroundColor: accentColor, borderColor: accentColor }]}>
+                        <Text style={[dynamicStyles.modalNoteReminderText, { color: theme.cardBackground }]}>🔔</Text>
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </NeuPressable>
                 ))}
               </ScrollView>
             </View>
@@ -184,11 +230,11 @@ export default function DateActionModal({
           {entry?.symptoms && (
             <View style={dynamicStyles.modalSymptomsSection}>
               <Text style={[dynamicStyles.modalSectionTitle, { color: theme.textPrimary }]}>Symptoms</Text>
-              <View style={[dynamicStyles.modalSymptomsPreview, { backgroundColor: `${accentColor}20` }]}>
+              <View style={[dynamicStyles.modalSymptomsPreview, { backgroundColor: addOpacityToHex(accentColor, 0.08), borderColor: addOpacityToHex(accentColor, 0.3) }]}>
                 {entry.symptoms.mood !== undefined && (
                   <View style={dynamicStyles.modalSymptomPreviewItem}>
                     <Text style={dynamicStyles.modalSymptomEmoji}>😊</Text>
-                    <View style={dynamicStyles.modalSymptomPreviewBar}>
+                    <View style={[dynamicStyles.modalSymptomPreviewBar, { backgroundColor: addOpacityToHex('#f472b6', 0.2), borderColor: addOpacityToHex('#f472b6', 0.3) }]}>
                       <View
                         style={[
                           dynamicStyles.modalSymptomPreviewFill,
@@ -205,7 +251,7 @@ export default function DateActionModal({
                 {entry.symptoms.energy !== undefined && (
                   <View style={dynamicStyles.modalSymptomPreviewItem}>
                     <Text style={dynamicStyles.modalSymptomEmoji}>⚡</Text>
-                    <View style={dynamicStyles.modalSymptomPreviewBar}>
+                    <View style={[dynamicStyles.modalSymptomPreviewBar, { backgroundColor: addOpacityToHex('#34d399', 0.2), borderColor: addOpacityToHex('#34d399', 0.3) }]}>
                       <View
                         style={[
                           dynamicStyles.modalSymptomPreviewFill,
@@ -222,7 +268,7 @@ export default function DateActionModal({
                 {entry.symptoms.cramps !== undefined && (
                   <View style={dynamicStyles.modalSymptomPreviewItem}>
                     <Text style={dynamicStyles.modalSymptomEmoji}>💢</Text>
-                    <View style={dynamicStyles.modalSymptomPreviewBar}>
+                    <View style={[dynamicStyles.modalSymptomPreviewBar, { backgroundColor: addOpacityToHex('#fb7185', 0.2), borderColor: addOpacityToHex('#fb7185', 0.3) }]}>
                       <View
                         style={[
                           dynamicStyles.modalSymptomPreviewFill,
@@ -237,12 +283,17 @@ export default function DateActionModal({
                   </View>
                 )}
               </View>
-              <TouchableOpacity
-                style={[dynamicStyles.modalEditSymptomsButton, { backgroundColor: `${accentColor}20`, borderColor: theme.border }]}
+              <NeuPressable
                 onPress={onOpenSymptomTracker}
+                backgroundColor={theme.cardBackground}
+                shadowColor={accentColor}
+                borderRadius={14}
+                pressDepth={6}
+                style={dynamicStyles.modalEditSymptomsButtonWrapper}
+                contentStyle={[dynamicStyles.modalEditSymptomsButtonContent, { borderColor: accentColor, borderWidth: 2 }]}
               >
                 <Text style={[dynamicStyles.modalEditSymptomsText, { color: accentColor }]}>Edit Symptoms</Text>
-              </TouchableOpacity>
+              </NeuPressable>
             </View>
           )}
         </View>
@@ -264,6 +315,12 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderLeftColor: accentColor,
+    borderRightColor: accentColor,
+    borderTopColor: accentColor,
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 34,
@@ -274,56 +331,67 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    paddingBottom: 18,
+    borderBottomWidth: 2,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.2,
+    fontSize: 22,
+    fontWeight: '800',
+    fontFamily: 'Bold',
+    letterSpacing: -0.3,
   },
   modalSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     marginTop: 4,
+    fontWeight: '500',
   },
-  modalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  modalCloseButtonWrapper: {
+    alignSelf: 'flex-start',
+  },
+  modalCloseButtonContent: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 20,
   },
   modalActionsSection: {
     marginBottom: 24,
   },
   modalSectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 16,
+    letterSpacing: -0.2,
   },
   modalActionsGrid: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
-  modalActionCard: {
+  modalActionCardWrapper: {
     flex: 1,
+    alignSelf: 'stretch',
+  },
+  modalActionCardContent: {
     alignItems: 'center',
-    padding: 16,
+    padding: 18,
+    borderWidth: 2,
     borderRadius: 16,
-    borderWidth: 1.5,
   },
   modalActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
+    borderWidth: 2,
   },
   modalActionLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '800',
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
   modalNotesSection: {
     marginBottom: 24,
@@ -332,40 +400,49 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     gap: 12,
     paddingRight: 4,
   },
-  modalNoteCard: {
-    width: 160,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
+  modalNoteCardWrapper: {
+    width: 180,
+    alignSelf: 'flex-start',
+  },
+  modalNoteCardContent: {
+    padding: 16,
     position: 'relative',
+    alignItems: 'flex-start',
+    borderWidth: 2,
+    borderRadius: 18,
   },
   modalNoteIconBadge: {
-    marginBottom: 8,
+    marginBottom: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
   },
   modalNoteIcon: {
-    fontSize: 24,
+    fontSize: 28,
   },
   modalNoteTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 6,
+    letterSpacing: -0.2,
   },
   modalNoteText: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
   },
   modalNoteReminder: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fef3c7',
+    top: 12,
+    right: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
   },
   modalNoteReminderText: {
     fontSize: 10,
@@ -374,46 +451,50 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     marginBottom: 8,
   },
   modalSymptomsPreview: {
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
-    marginBottom: 12,
+    borderRadius: 18,
+    padding: 18,
+    gap: 16,
+    marginBottom: 16,
+    borderWidth: 3,
   },
   modalSymptomPreviewItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   modalSymptomEmoji: {
-    fontSize: 18,
+    fontSize: 22,
   },
   modalSymptomPreviewBar: {
     flex: 1,
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 3,
+    height: 10,
+    borderRadius: 8,
     overflow: 'hidden',
+    borderWidth: 2,
   },
   modalSymptomPreviewFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 6,
   },
   modalSymptomValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    width: 30,
+    fontSize: 13,
+    fontWeight: '800',
+    width: 36,
     textAlign: 'right',
   },
-  modalEditSymptomsButton: {
+  modalEditSymptomsButtonWrapper: {
+    alignSelf: 'stretch',
+  },
+  modalEditSymptomsButtonContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
   },
   modalEditSymptomsText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });
 

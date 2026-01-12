@@ -23,6 +23,9 @@ import { X, Save, Bell, BellOff, Trash2 } from 'lucide-react-native';
 import AppText from './AppText';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { QuickNote } from '@/src/store/slices/cycleSlice';
+import NeuPressable from './NeuPressable';
+import { addOpacityToHex, darkenColor } from '@/src/utils';
+import NeuButton from './NeuButton';
 
 // ============================================================================
 // TYPES
@@ -157,11 +160,19 @@ export default function QuickNoteModal({
         <View style={dynamicStyles.overlay}>
           <View style={[dynamicStyles.modalContent, { backgroundColor: theme.cardBackground }]}>
             {/* Header */}
-            <View style={[dynamicStyles.header, { borderBottomColor: theme.border }]}>
+            <View style={[dynamicStyles.header, { borderBottomColor: addOpacityToHex(accentColor, 0.2) }]}>
               <View style={dynamicStyles.headerLeft}>
-                <View style={[dynamicStyles.headerIcon, { backgroundColor: `${accentColor}20` }]}>
+                <NeuPressable
+                  backgroundColor={accentColor}
+                  shadowColor={accentColor}
+                  borderRadius={16}
+                  pressDepth={0}
+                  style={dynamicStyles.headerIconWrapper}
+                  contentStyle={dynamicStyles.headerIconContent}
+                  disabled={true}
+                >
                   <Text style={dynamicStyles.headerIconText}>📝</Text>
-                </View>
+                </NeuPressable>
                 <View>
                   <AppText style={[dynamicStyles.title, { color: theme.textPrimary }]}>
                     {isEditing ? 'Edit Quick Note' : 'New Quick Note'}
@@ -175,12 +186,17 @@ export default function QuickNoteModal({
                   </AppText>
                 </View>
               </View>
-              <TouchableOpacity 
-                onPress={onClose} 
-                style={[dynamicStyles.closeButton, { backgroundColor: theme.primarySoft }]}
+              <NeuPressable
+                onPress={onClose}
+                backgroundColor={theme.cardBackground}
+                shadowColor={accentColor}
+                borderRadius={18}
+                pressDepth={4}
+                style={dynamicStyles.closeButtonWrapper}
+                contentStyle={dynamicStyles.closeButtonContent}
               >
-                <X size={20} color={theme.textSecondary} />
-              </TouchableOpacity>
+                <X size={20} color={accentColor} />
+              </NeuPressable>
             </View>
 
             <ScrollView
@@ -197,7 +213,7 @@ export default function QuickNoteModal({
                 <TextInput
                   style={[dynamicStyles.input, { 
                     backgroundColor: theme.cardBackground, 
-                    borderColor: theme.border, 
+                    borderColor: accentColor, 
                     color: theme.textPrimary 
                   }]}
                   value={title}
@@ -210,57 +226,59 @@ export default function QuickNoteModal({
               {/* Icon Picker */}
               <View style={dynamicStyles.inputSection}>
                 <AppText style={[dynamicStyles.label, { color: theme.textPrimary }]}>Icon (Optional)</AppText>
-                <TouchableOpacity
-                  style={[dynamicStyles.iconPickerButton, { 
-                    backgroundColor: theme.cardBackground, 
-                    borderColor: theme.border 
-                  }]}
+                <NeuPressable
                   onPress={() => setShowIconPicker(!showIconPicker)}
+                  backgroundColor={theme.cardBackground}
+                  shadowColor={accentColor}
+                  borderRadius={16}
+                  pressDepth={5}
+                  style={dynamicStyles.iconPickerButtonWrapper}
+                  contentStyle={dynamicStyles.iconPickerButtonContent}
                 >
                   {icon ? (
                     <Text style={dynamicStyles.iconDisplay}>{icon}</Text>
                   ) : (
                     <AppText style={[dynamicStyles.iconPlaceholder, { color: theme.textSecondary }]}>Tap to select icon</AppText>
                   )}
-                </TouchableOpacity>
+                </NeuPressable>
 
                 {showIconPicker && (
                   <View style={[dynamicStyles.iconGrid, { 
-                    backgroundColor: theme.primarySoft, 
-                    borderColor: theme.border 
+                    backgroundColor: addOpacityToHex(accentColor, 0.08), 
+                    borderColor: addOpacityToHex(accentColor, 0.3) 
                   }]}>
                     {ICON_OPTIONS.map((iconOption, index) => (
-                      <TouchableOpacity
+                      <NeuPressable
                         key={index}
-                        style={[
-                          dynamicStyles.iconOption,
-                          { backgroundColor: theme.cardBackground },
-                          icon === iconOption.emoji && { 
-                            borderColor: accentColor, 
-                            backgroundColor: `${accentColor}20` 
-                          },
-                        ]}
                         onPress={() => {
                           setIcon(iconOption.emoji);
                           setShowIconPicker(false);
                         }}
+                        backgroundColor={icon === iconOption.emoji ? accentColor : theme.cardBackground}
+                        shadowColor={icon === iconOption.emoji ? accentColor : '#000'}
+                        borderRadius={14}
+                        pressDepth={icon === iconOption.emoji ? 0 : 4}
+                        style={dynamicStyles.iconOptionWrapper}
+                        contentStyle={dynamicStyles.iconOptionContent}
                       >
-                        <Text style={dynamicStyles.iconOptionEmoji}>{iconOption.emoji}</Text>
-                      </TouchableOpacity>
+                        <Text style={[dynamicStyles.iconOptionEmoji, { color: icon === iconOption.emoji ? theme.cardBackground : theme.textPrimary }]}>{iconOption.emoji}</Text>
+                      </NeuPressable>
                     ))}
                     {icon && (
-                      <TouchableOpacity
-                        style={[dynamicStyles.iconOption, { 
-                          backgroundColor: '#fee2e2', 
-                          borderColor: '#fecaca' 
-                        }]}
+                      <NeuPressable
                         onPress={() => {
                           setIcon('');
                           setShowIconPicker(false);
                         }}
+                        backgroundColor="#fee2e2"
+                        shadowColor="#dc2626"
+                        borderRadius={14}
+                        pressDepth={5}
+                        style={dynamicStyles.iconOptionWrapper}
+                        contentStyle={dynamicStyles.iconOptionContent}
                       >
-                        <X size={20} color={theme.textSecondary} />
-                      </TouchableOpacity>
+                        <X size={20} color="#dc2626" />
+                      </NeuPressable>
                     )}
                   </View>
                 )}
@@ -275,7 +293,7 @@ export default function QuickNoteModal({
                 <TextInput
                   style={[dynamicStyles.input, dynamicStyles.textArea, { 
                     backgroundColor: theme.cardBackground, 
-                    borderColor: theme.border, 
+                    borderColor: accentColor, 
                     color: theme.textPrimary 
                   }]}
                   value={text}
@@ -290,14 +308,18 @@ export default function QuickNoteModal({
 
               {/* Reminder Toggle */}
               <View style={[dynamicStyles.reminderSection, { 
-                backgroundColor: theme.primarySoft, 
-                borderColor: theme.border 
+                backgroundColor: addOpacityToHex(accentColor, 0.08), 
+                borderColor: addOpacityToHex(accentColor, 0.3) 
               }]}>
                 <View style={dynamicStyles.reminderHeader}>
                   {reminder ? (
-                    <Bell size={20} color={accentColor} />
+                    <View style={[dynamicStyles.reminderIconWrapper, { backgroundColor: accentColor }]}>
+                      <Bell size={20} color={theme.cardBackground} />
+                    </View>
                   ) : (
-                    <BellOff size={20} color={theme.textSecondary} />
+                    <View style={[dynamicStyles.reminderIconWrapper, { backgroundColor: addOpacityToHex(accentColor, 0.15), borderColor: accentColor }]}>
+                      <BellOff size={20} color={accentColor} />
+                    </View>
                   )}
                   <AppText style={[dynamicStyles.reminderLabel, { color: theme.textPrimary }]}>Set Reminder</AppText>
                 </View>
@@ -311,30 +333,30 @@ export default function QuickNoteModal({
             </ScrollView>
 
             {/* Actions */}
-            <View style={[dynamicStyles.actions, { borderTopColor: theme.border }]}>
+            <View style={[dynamicStyles.actions, { borderTopColor: addOpacityToHex(accentColor, 0.2) }]}>
               {isEditing && onDelete && (
-                <TouchableOpacity
-                  style={dynamicStyles.deleteButton}
+                <NeuPressable
                   onPress={handleDelete}
+                  backgroundColor="#fee2e2"
+                  shadowColor="#dc2626"
+                  borderRadius={16}
+                  pressDepth={6}
+                  style={dynamicStyles.deleteButtonWrapper}
+                  contentStyle={dynamicStyles.deleteButtonContent}
                 >
                   <Trash2 size={18} color="#dc2626" />
                   <AppText style={dynamicStyles.deleteButtonText}>Delete</AppText>
-                </TouchableOpacity>
+                </NeuPressable>
               )}
-              <TouchableOpacity
-                style={[
-                  dynamicStyles.saveButton, 
-                  { backgroundColor: accentColor },
-                  (!title.trim() || !text.trim()) && dynamicStyles.saveButtonDisabled
-                ]}
+              <NeuButton
                 onPress={handleSave}
                 disabled={!title.trim() || !text.trim()}
-              >
-                <Save size={18} color="#fff" />
-                <AppText style={dynamicStyles.saveButtonText}>
-                  {isEditing ? 'Update' : 'Save'} Note
-                </AppText>
-              </TouchableOpacity>
+                backgroundColor={theme.cardBackground}
+                shadowColor={darkenColor(accentColor, 0.2)}
+                title={isEditing ? 'Update' : 'Save'}
+                
+                textStyle={{ color: theme.cardBackground }}
+              />
             </View>
           </View>
         </View>
@@ -357,8 +379,14 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderTopColor: accentColor,
+    borderLeftColor: accentColor,
+    borderRightColor: accentColor,
     maxHeight: '90%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
@@ -367,20 +395,22 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    paddingTop: 24,
+    paddingBottom: 18,
+    borderBottomWidth: 2,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     flex: 1,
   },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  headerIconWrapper: {
+    alignSelf: 'flex-start',
+  },
+  headerIconContent: {
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -388,19 +418,26 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontSize: 20,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 2,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  closeButtonWrapper: {
+    alignSelf: 'flex-start',
+  },
+  closeButtonContent: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: accentColor,
+    borderRadius: 20,
   },
   content: {
     paddingHorizontal: 20,
@@ -416,57 +453,65 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     marginBottom: 8,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   required: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#ef4444',
   },
   input: {
-    borderRadius: 12,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    borderRadius: 16,
+    borderWidth: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: '500',
   },
   textArea: {
-    minHeight: 120,
-    paddingTop: 12,
+    minHeight: 140,
+    paddingTop: 14,
   },
-  iconPickerButton: {
-    borderRadius: 12,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
+  iconPickerButtonWrapper: {
+    alignSelf: 'stretch',
+  },
+  iconPickerButtonContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: 60,
+    borderWidth: 2,
+    borderRadius: 16,
   },
   iconDisplay: {
-    fontSize: 32,
+    fontSize: 36,
   },
   iconPlaceholder: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
   },
   iconGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+    gap: 14,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 3,
   },
-  iconOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  iconOptionWrapper: {
+    alignSelf: 'flex-start',
+  },
+  iconOptionContent: {
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderRadius: 14,
   },
   iconOptionEmoji: {
     fontSize: 24,
@@ -475,60 +520,75 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 20,
-    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginBottom: 24,
+    borderRadius: 18,
+    borderWidth: 3,
   },
   reminderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+  },
+  reminderIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
   },
   reminderLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
     paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
+    paddingTop: 20,
+    borderTopWidth: 2,
   },
-  saveButton: {
+  saveButtonWrapper: {
     flex: 1,
+    alignSelf: 'stretch',
+  },
+  saveButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
+    gap: 10,
+    paddingVertical: 16,
   },
   saveButtonDisabled: {
     opacity: 0.5,
   },
   saveButtonText: {
     color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+    fontWeight: '800',
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
-  deleteButton: {
+  deleteButtonWrapper: {
+    alignSelf: 'flex-start',
+  },
+  deleteButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
-    backgroundColor: '#fee2e2',
+    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 22,
+    borderWidth: 2,
+    borderRadius: 16,
   },
   deleteButtonText: {
     color: '#dc2626',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
 });
 

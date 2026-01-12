@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,30 +13,40 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { commonFoods, weeklyMealPlans, FoodItem } from '@/data/foodData';
-import { Camera, Plus, Search, X, Calendar, Target, TrendingUp } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { Camera, Plus, Calendar, Target, TrendingUp } from 'lucide-react-native';
 import { AIInsights } from '@/components/AIInsights';
-import { supabase } from '@/lib/supabase';
 import CircularProgress from 'react-native-circular-progress-indicator';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useCycleStore } from '@/hooks/useCycleStore';
+import FoodScanModal, { ScanResult } from '@/components/food/FoodScanModal';
+import { AddFoodModal } from '@/components/food/AddFoodModal';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '@/src/store';
+import { fetchGlobalFoods } from '@/src/store/slices/foodSlice';
+import NeuPressable from '@/components/core-components/NeuPressable';
+import { addOpacityToHex } from '@/src/utils';
 
 export default function FoodScreen() {
   const { cycle, addFoodEntry } = useCycleStore();
   const { theme, accentColor } = useTheme();
-  const router = useRouter();
-  
+  const dispatch = useDispatch<AppDispatch>();
+  const { globalFoods, loadingGlobal } = useSelector((state: RootState) => state.food);
+
   const { width, height } = Dimensions.get('window');
   const dynamicStyles = useMemo(() => createStyles(theme, accentColor, width, height), [theme, accentColor, width, height]);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
   const [showMealPlanModal, setShowMealPlanModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
-  const [quantity, setQuantity] = useState('1');
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
   const [showAiInsights, setShowAiInsights] = useState(false);
+
+  // Load global foods once
+  useEffect(() => {
+    if (!globalFoods || globalFoods.length === 0) {
+      dispatch(fetchGlobalFoods());
+    }
+  }, [dispatch, globalFoods]);
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], []);
   const todaysFoodEntries = useMemo(
@@ -48,117 +58,78 @@ export default function FoodScreen() {
     [todaysFoodEntries]
   );
 
-  const calorieGoal = cycle.profile?.dailyCalorieGoal || 2000;
+  const calorieGoal =
+    (cycle.profile as any)?.dailyCalorieGoal ??
+    2000;
   const remainingCalories = calorieGoal - todaysCalories;
 
   const currentPhasePlan = weeklyMealPlans.find(
     (plan) => plan.phase === cycle.currentPhase.name
   );
 
-  const filteredFoods = useMemo(
+  // Map global foods from backend into FoodItem shape for UI
+  const globalFoodItems: FoodItem[] = useMemo(
     () =>
-      commonFoods.filter((food) =>
-        food.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [searchQuery]
+      (globalFoods || []).map((food) => ({
+        name: food.name,
+        calories: food.calories,
+        protein: food.proteinGrams,
+        carbs: food.carbsGrams,
+        fat: food.fatGrams,
+        // Fallback category to keep UI stable
+        category: (food.category || 'SNACK').toLowerCase(),
+        imageUrl: food.imageUrl,
+      })),
+    [globalFoods],
   );
 
-  // 📸 Take and Analyze Food Photo
-  const takeFoodPhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take food photos');
-      return;
-    }
+  // Prefer global foods from backend; fallback to static commonFoods
+  const allFoods: FoodItem[] = useMemo(
+    () => (globalFoodItems.length > 0 ? globalFoodItems : commonFoods),
+    [globalFoodItems],
+  );
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (result.canceled) return;
-
-    try {
-      Alert.alert('Analyzing...', 'Please wait while we estimate calories.');
-
-      const uri = result.assets[0].uri;
-      const formData = new FormData();
-      formData.append('photo', {
-        uri,
-        name: 'food.jpg',
-        type: 'image/jpeg',
-      } as any);
-      formData.append('prompt', 'Scan this meal.');
-
-      const API_BASE = process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:4000';
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-
-      const response = await fetch(`${API_BASE}/api/food/scan`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      const json = await response.json();
-
-      if (!response.ok || !json.data) {
-        throw new Error(json.error || 'Analysis failed');
-      }
-
-      const analysis = json.data;
-
-      addFoodEntry({
-        id: Date.now().toString(),
-        date: today,
-        name: `${analysis.foodName || 'Unknown food'} (${analysis.portion || '1 serving'})`,
-        calories: Math.round(analysis.calories || 0),
-        protein: Math.round(analysis.protein || 0),
-        carbs: Math.round(analysis.carbs || 0),
-        fat: Math.round(analysis.fat || 0),
-        mealType,
-        imageUri: uri,
-      });
-
-      Alert.alert(
-        'Added from Photo',
-        `${analysis.foodName || 'Unknown food'}\n${Math.round(analysis.calories || 0)} cal • P ${Math.round(
-          analysis.protein || 0
-        )}g • C ${Math.round(analysis.carbs || 0)}g • F ${Math.round(analysis.fat || 0)}g`
-      );
-    } catch (e: any) {
-      console.error(e);
-      Alert.alert('Analysis failed', e.message || 'Unable to analyze photo. Please try again or add manually.');
-      setShowAddModal(true);
-    }
-  };
-
-  // 🥗 Manual Add Handler
-  const handleAddFood = () => {
-    if (!selectedFood) {
-      Alert.alert('Select Food', 'Please select a food item first.');
-      return;
-    }
-
-    const multiplier = parseFloat(quantity) || 1;
-
+  const handleScanAdd = ({ analysis, name, note }: { analysis: ScanResult; name: string; note?: string }) => {
     addFoodEntry({
       id: Date.now().toString(),
       date: today,
-      name: `${selectedFood.name} (${quantity}x)`,
-      calories: Math.round((selectedFood.calories || 0) * multiplier),
-      protein: Math.round((selectedFood.protein || 0) * multiplier),
-      carbs: Math.round((selectedFood.carbs || 0) * multiplier),
-      fat: Math.round((selectedFood.fat || 0) * multiplier),
+      name,
+      calories: Math.round(analysis.calories || 0),
+      protein: 0,
+      carbs: 0,
+      fat: 0,
       mealType,
+      note,
+    });
+
+    Alert.alert(
+      'Added from scan',
+      `${name}\n${Math.round(analysis.calories || 0)} cal`
+    );
+  };
+
+  // 🥗 Add from global list handler
+  const handleAddFoodFromGlobal = ({
+    food,
+    quantity,
+    mealType: mt,
+  }: {
+    food: FoodItem;
+    quantity: number;
+    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  }) => {
+    addFoodEntry({
+      id: Date.now().toString(),
+      date: today,
+      name: `${food.name} (${quantity}x)`,
+      calories: Math.round((food.calories || 0) * quantity),
+      protein: Math.round((food.protein || 0) * quantity),
+      carbs: Math.round((food.carbs || 0) * quantity),
+      fat: Math.round((food.fat || 0) * quantity),
+      mealType: mt,
     });
 
     setShowAddModal(false);
-    setSelectedFood(null);
-    setQuantity('1');
-    setSearchQuery('');
   };
 
   const getMealTypeEntries = (type: string) =>
@@ -205,9 +176,16 @@ export default function FoodScreen() {
       </LinearGradient>
 
       {/* Calorie Progress */}
-      <View style={[dynamicStyles.summaryCard, { 
+      <NeuPressable
+        borderRadius={20}
+        backgroundColor="#fff"
+        shadowColor={addOpacityToHex(accentColor, 0.1)}
+        onPress={() => setShowAiInsights(true)}
+        style={{margin: 20}}  
+      >
+      <View style={[dynamicStyles.summaryCard, {
         backgroundColor: theme.cardBackground,
-        shadowColor: accentColor,
+        shadowColor: addOpacityToHex(accentColor, 0.1),
       }]}>
         <View style={dynamicStyles.summaryHeader}>
           <Target size={24} color={accentColor} />
@@ -245,8 +223,8 @@ export default function FoodScreen() {
               <Text
                 style={[
                   dynamicStyles.calorieDetailValue,
-                  { 
-                    color: remainingCalories < 0 ? '#ef4444' : accentColor 
+                  {
+                    color: remainingCalories < 0 ? '#ef4444' : accentColor
                   },
                 ]}
               >
@@ -256,155 +234,182 @@ export default function FoodScreen() {
           </View>
         </View>
       </View>
+      </NeuPressable>
 
       {/* Quick Actions */}
       <View style={dynamicStyles.section}>
         <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Quick Add</Text>
         <View style={dynamicStyles.quickActions}>
-          <TouchableOpacity 
-            style={[dynamicStyles.quickActionButton, { 
-              backgroundColor: theme.cardBackground,
-              shadowColor: accentColor,
-            }]} 
-            onPress={takeFoodPhoto}
+          <NeuPressable
+            borderRadius={20}
+            backgroundColor="#fff"
+            shadowColor={addOpacityToHex(accentColor, 0.1)}
+            onPress={() => setShowScanModal(true)}
           >
-            <Camera size={24} color={accentColor} />
-            <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Take Photo</Text>
-          </TouchableOpacity>
+            <View
+              style={[dynamicStyles.quickActionButton, {
+                backgroundColor: theme.cardBackground,
+                shadowColor: addOpacityToHex(accentColor, 0.1),
+              }]}
 
-          <TouchableOpacity 
-            style={[dynamicStyles.quickActionButton, { 
-              backgroundColor: theme.cardBackground,
-              shadowColor: accentColor,
-            }]} 
+            >
+              <Camera size={24} color={accentColor} />
+              <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Scan Food</Text>
+            </View>
+          </NeuPressable>
+
+
+          <NeuPressable
+            borderRadius={20}
+            backgroundColor="#fff"
+            shadowColor={addOpacityToHex(accentColor, 0.1)}
             onPress={() => setShowAddModal(true)}
           >
-            <Plus size={24} color={accentColor} />
-            <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Add Food</Text>
-          </TouchableOpacity>
+            <View
+              style={[dynamicStyles.quickActionButton, {
+                backgroundColor: theme.cardBackground,
+                shadowColor: addOpacityToHex(accentColor, 0.1),
+              }]}
 
-          <TouchableOpacity 
-            style={[dynamicStyles.quickActionButton, { 
-              backgroundColor: theme.cardBackground,
-              shadowColor: accentColor,
-            }]} 
+            >
+              <Plus size={24} color={accentColor} />
+              <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Add Food</Text>
+            </View>
+          </NeuPressable>
+
+
+          <NeuPressable
+            borderRadius={20}
+            backgroundColor="#fff"
+            shadowColor={addOpacityToHex(accentColor, 0.1)}
             onPress={() => setShowMealPlanModal(true)}
           >
-            <Calendar size={24} color={accentColor} />
-            <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Meal Plan</Text>
-          </TouchableOpacity>
+            <View
+              style={[dynamicStyles.quickActionButton, {
+                backgroundColor: theme.cardBackground,
+                shadowColor: addOpacityToHex(accentColor, 0.1),
+              }]}
+            >
+              <Calendar size={24} color={accentColor} />
+              <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>Meal Plan</Text>
+            </View>
+          </NeuPressable>
 
-          <TouchableOpacity 
-            style={[dynamicStyles.quickActionButton, { 
-              backgroundColor: theme.cardBackground,
-              shadowColor: accentColor,
-            }]} 
+
+
+          <NeuPressable
+            borderRadius={20}
+            backgroundColor="#fff"
+            shadowColor={addOpacityToHex(accentColor, 0.1)}
             onPress={() => setShowAiInsights(true)}
+          >
+            <View
+            style={[dynamicStyles.quickActionButton, {
+              backgroundColor: theme.cardBackground,
+              shadowColor: addOpacityToHex(accentColor, 0.1),
+            }]}
           >
             <TrendingUp size={24} color={accentColor} />
             <Text style={[dynamicStyles.quickActionText, { color: theme.textPrimary }]}>AI Insights</Text>
-          </TouchableOpacity>
+          </View>
+          </NeuPressable>
         </View>
       </View>
 
-      {/* Add Food Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
-        <View style={dynamicStyles.modalOverlay}>
-          <View style={[dynamicStyles.modalContent, { backgroundColor: theme.cardBackground }]}>
-            <View style={dynamicStyles.modalHeader}>
-              <Text style={[dynamicStyles.modalTitle, { color: theme.textPrimary }]}>Add Food</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color={theme.textSecondary} />
-              </TouchableOpacity>
-            </View>
+      {/* Today's Food Log */}
+      <View style={dynamicStyles.section}>
+        <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Today's Meals</Text>
+        {todaysFoodEntries.length === 0 && (
+          <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+            No food logged yet. Scan a meal or add food to get started.
+          </Text>
+        )}
 
-            <View style={[dynamicStyles.searchContainer, { backgroundColor: `${accentColor}10` }]}>
-              <Search size={20} color={theme.textSecondary} />
-              <TextInput
-                style={[dynamicStyles.searchInput, { color: theme.textPrimary }]}
-                placeholder="Search foods..."
-                placeholderTextColor={theme.textSecondary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
+        {mealTypes.map((meal) => {
+          const entries = getMealTypeEntries(meal.key);
+          if (!entries.length) return null;
 
-            <View style={dynamicStyles.mealTypeSelection}>
-              {mealTypes.map((meal) => (
-                <TouchableOpacity
-                  key={meal.key}
-                  style={[
-                    dynamicStyles.mealTypeButton,
-                    { backgroundColor: `${accentColor}10` },
-                    mealType === meal.key && { backgroundColor: meal.color + '30' },
-                  ]}
-                  onPress={() => setMealType(meal.key as any)}
-                >
-                  <Text style={dynamicStyles.mealTypeEmoji}>{meal.icon}</Text>
-                  <Text
-                    style={[
-                      dynamicStyles.mealTypeText,
-                      { color: theme.textSecondary },
-                      mealType === meal.key && { color: meal.color, fontWeight: '600' },
-                    ]}
-                  >
+          const totalCalories = getMealTypeCalories(meal.key);
+
+          return (
+            <View
+              key={meal.key}
+              style={[
+                dynamicStyles.mealLogSection,
+                { backgroundColor: theme.cardBackground, borderColor: `${accentColor}20` },
+              ]}
+            >
+              <View style={dynamicStyles.mealLogHeader}>
+                <View style={dynamicStyles.mealLogTitleRow}>
+                  <Text style={dynamicStyles.mealLogEmoji}>{meal.icon}</Text>
+                  <Text style={[dynamicStyles.mealLogTitle, { color: theme.textPrimary }]}>
                     {meal.name}
                   </Text>
-                </TouchableOpacity>
+                </View>
+                <Text style={[dynamicStyles.mealLogCalories, { color: accentColor }]}>
+                  {totalCalories} kcal
+                </Text>
+              </View>
+
+              {entries.map((entry) => (
+                <View
+                  key={entry.id}
+                  style={[
+                    dynamicStyles.mealEntryCard,
+                    { backgroundColor: `${accentColor}08`, borderColor: `${accentColor}25` },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[dynamicStyles.mealEntryTitle, { color: theme.textPrimary }]}>
+                      {entry.name}
+                    </Text>
+                    {!!entry.note && (
+                      <Text
+                        style={[dynamicStyles.mealEntryNote, { color: theme.textSecondary }]}
+                        numberOfLines={2}
+                      >
+                        {entry.note}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={dynamicStyles.mealEntryMeta}>
+                    <Text style={[dynamicStyles.mealEntryCalories, { color: theme.textPrimary }]}>
+                      {entry.calories} kcal
+                    </Text>
+                    {(entry.protein || entry.carbs || entry.fat) && (
+                      <Text
+                        style={[dynamicStyles.mealEntryMacros, { color: theme.textSecondary }]}
+                        numberOfLines={1}
+                      >
+                        P {entry.protein || 0} • C {entry.carbs || 0} • F {entry.fat || 0}
+                      </Text>
+                    )}
+                  </View>
+                </View>
               ))}
             </View>
+          );
+        })}
+      </View>
 
-            <ScrollView style={dynamicStyles.foodList}>
-              {filteredFoods.map((food, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    dynamicStyles.foodItem,
-                    { backgroundColor: `${accentColor}10` },
-                    selectedFood?.name === food.name && { 
-                      backgroundColor: `${accentColor}20`,
-                      borderWidth: 2,
-                      borderColor: accentColor,
-                    },
-                  ]}
-                  onPress={() => setSelectedFood(food)}
-                >
-                  <View style={dynamicStyles.foodInfo}>
-                    <Text style={[dynamicStyles.foodItemName, { color: theme.textPrimary }]}>{food.name}</Text>
-                    <Text style={[dynamicStyles.foodItemDetails, { color: theme.textSecondary }]}>
-                      {food.calories} cal • P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+      <FoodScanModal
+        visible={showScanModal}
+        onClose={() => setShowScanModal(false)}
+        mealType={mealType}
+        onMealTypeChange={setMealType}
+        onAddFromScan={handleScanAdd}
+      />
 
-            {selectedFood && (
-              <View style={dynamicStyles.quantitySection}>
-                <Text style={[dynamicStyles.quantityLabel, { color: theme.textPrimary }]}>Quantity:</Text>
-                <TextInput
-                  style={[dynamicStyles.quantityInput, { 
-                    borderColor: theme.border, 
-                    color: theme.textPrimary,
-                    backgroundColor: theme.cardBackground,
-                  }]}
-                  value={quantity}
-                  onChangeText={setQuantity}
-                  keyboardType="numeric"
-                  placeholder="1"
-                  placeholderTextColor={theme.textSecondary}
-                />
-                <TouchableOpacity 
-                  style={[dynamicStyles.addButton, { backgroundColor: accentColor }]} 
-                  onPress={handleAddFood}
-                >
-                  <Text style={dynamicStyles.addButtonText}>Add Food</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* Global Food List Modal */}
+      <AddFoodModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        foods={allFoods}
+        mealType={mealType}
+        onMealTypeChange={setMealType as any}
+        loadingGlobal={loadingGlobal}
+        onConfirmAdd={handleAddFoodFromGlobal}
+      />
 
       {/* AI Insights */}
       <Modal visible={showAiInsights} animationType="slide" onRequestClose={() => setShowAiInsights(false)}>
@@ -462,7 +467,7 @@ const createStyles = (theme: any, accentColor: string, width: number, height: nu
     height: '100%',
   },
   summaryCard: {
-    margin: 20,
+    // margin: 20,
     padding: 20,
     borderRadius: 20,
     elevation: 3,
@@ -536,110 +541,306 @@ const createStyles = (theme: any, accentColor: string, width: number, height: nu
   },
   quickActionText: {
     marginTop: 8,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     textAlign: 'center',
+    // textAlign: 'center',
+    width: 40,
+   
+    // alignSelf: 'stretch',
+   
+
   },
-  modalOverlay: {
+  // Fullscreen Modal Styles
+  fullscreenModal: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  modalContent: {
-    margin: 20,
-    borderRadius: 20,
-    padding: 24,
-    maxHeight: '80%',
-    width: '90%',
+  modalHeaderGradient: {
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
-  modalHeader: {
+  modalHeaderContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  modalHeaderLeft: {
+    flex: 1,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingLeft: 8,
-    fontSize: 16,
-  },
-  mealTypeSelection: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  mealTypeButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  mealTypeEmoji: {
-    fontSize: 16,
+    fontSize: 28,
+    fontFamily: 'Bold',
     marginBottom: 4,
   },
-  mealTypeText: {
-    fontSize: 12,
+  modalSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  foodList: {
-    maxHeight: 200,
-    marginBottom: 16,
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
   },
-  foodItem: {
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+  modalSearchWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
-  foodInfo: {
+  modalSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalMealTypeWrapper: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  modalMealTypeScroll: {
+    gap: 10,
+    paddingRight: 20,
+  },
+  modalMealTypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    gap: 8,
+    minWidth: 100,
+  },
+  modalMealTypeEmoji: {
+    fontSize: 18,
+  },
+  modalMealTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalFoodList: {
     flex: 1,
   },
-  foodItemName: {
-    fontSize: 14,
+  modalFoodListContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 100,
+  },
+  modalFoodCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  modalFoodCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalFoodCardLeft: {
+    flex: 1,
+  },
+  modalFoodImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    marginLeft: 12,
+    backgroundColor: '#e5e7eb',
+  },
+  modalFoodName: {
+    fontSize: 16,
+    fontFamily: 'Bold',
+    marginBottom: 8,
+  },
+  modalFoodMacros: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  modalMacroBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  modalMacroText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalMacroDetail: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  modalSelectedIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  modalEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  modalEmptyText: {
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
   },
-  foodItemDetails: {
-    fontSize: 12,
+  modalEmptySubtext: {
+    fontSize: 14,
   },
-  quantitySection: {
+  modalBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    paddingTop: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  modalBottomContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  quantityLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  quantityInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    width: 60,
-    textAlign: 'center',
-  },
-  addButton: {
+  modalQuantitySection: {
     flex: 1,
-    paddingVertical: 12,
+  },
+  modalQuantityLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modalQuantityInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalQuantityButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalQuantityButtonText: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  modalQuantityInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 16,
+    fontWeight: '700',
+    paddingHorizontal: 12,
+  },
+  modalAddButton: {
+    flex: 1.5,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  addButtonText: {
+  modalAddButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Bold',
+    fontWeight: '700',
+  },
+  mealLogSection: {
+    marginTop: 8,
+    marginBottom: 12,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+  },
+  mealLogHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  mealLogTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mealLogEmoji: {
+    fontSize: 18,
+  },
+  mealLogTitle: {
+    fontSize: 16,
+    fontFamily: 'Bold',
+  },
+  mealLogCalories: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  mealEntryCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 6,
+    gap: 10,
+  },
+  mealEntryTitle: {
     fontSize: 14,
     fontWeight: '600',
+    marginBottom: 2,
+  },
+  mealEntryNote: {
+    fontSize: 12,
+  },
+  mealEntryMeta: {
+    alignItems: 'flex-end',
+    minWidth: 80,
+  },
+  mealEntryCalories: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  mealEntryMacros: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });

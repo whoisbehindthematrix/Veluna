@@ -14,6 +14,8 @@ import { Activity, FileText, Plus, TrendingUp, Calendar, Droplets } from 'lucide
 import AppText from './AppText';
 import { useTheme } from '@/src/context/ThemeContext';
 import type { QuickNote } from '@/src/store/slices/cycleSlice';
+import NeuPressable from './NeuPressable';
+import { addOpacityToHex } from '@/src/utils';
 
 interface SymptomData {
   mood?: number;
@@ -56,6 +58,16 @@ export default function TodaySummaryCard({
     day: 'numeric',
   });
 
+  // Check if date is in the future
+  const isFutureDate = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const dateObj = new Date(date);
+    const todayObj = new Date(today);
+    dateObj.setHours(0, 0, 0, 0);
+    todayObj.setHours(0, 0, 0, 0);
+    return dateObj > todayObj;
+  }, [date]);
+
   const getSymptomSummary = () => {
     if (!symptoms) return null;
 
@@ -74,13 +86,21 @@ export default function TodaySummaryCard({
   const summary = getSymptomSummary();
 
   return (
-    <View style={[dynamicStyles.card, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}>
+    <View style={[dynamicStyles.card, { backgroundColor: theme.cardBackground, borderColor: accentColor }]}>
       {/* HEADER */}
-      <View style={dynamicStyles.header}>
+      <View style={[dynamicStyles.header, { borderBottomColor: addOpacityToHex(accentColor, 0.2) }]}>
         <View style={dynamicStyles.headerLeft}>
-          <View style={[dynamicStyles.dateIcon, { backgroundColor: `${accentColor}20` }]}>
-            <Calendar size={20} color={accentColor} />
-          </View>
+          <NeuPressable
+            backgroundColor={accentColor}
+            shadowColor={accentColor}
+            borderRadius={16}
+            pressDepth={3}
+            style={dynamicStyles.dateIconWrapper}
+            contentStyle={dynamicStyles.dateIconContent}
+            disabled={true}
+          >
+            <Calendar size={20} color={theme.cardBackground} />
+          </NeuPressable>
 
           <View>
             <AppText style={[dynamicStyles.date, { color: theme.textPrimary }]}>{formattedDate}</AppText>
@@ -89,32 +109,42 @@ export default function TodaySummaryCard({
         </View>
 
         {isPeriod && (
-          <View style={dynamicStyles.periodBadge}>
-            <View style={dynamicStyles.periodDot} />
-            <AppText style={dynamicStyles.periodText}>Period</AppText>
+          <View style={[dynamicStyles.periodBadge, { backgroundColor: accentColor, borderColor: accentColor }]}>
+            <View style={[dynamicStyles.periodDot, { backgroundColor: theme.cardBackground }]} />
+            <AppText style={[dynamicStyles.periodText, { color: theme.cardBackground }]}>Period</AppText>
           </View>
         )}
       </View>
 
       {/* QUICK ACTIONS */}
-      <View style={dynamicStyles.actions}>
-        {!isPeriod && (
-          <TouchableOpacity 
-            style={[dynamicStyles.action, dynamicStyles.actionPeriod, { backgroundColor: theme.cardBackground, borderColor: theme.border }]} 
+      <View style={[dynamicStyles.actions, { borderBottomColor: addOpacityToHex(accentColor, 0.2) }]}>
+        {!isPeriod && !isFutureDate && (
+          <NeuPressable
             onPress={onLogPeriod}
+            backgroundColor={theme.cardBackground}
+            shadowColor={accentColor}
+            borderRadius={16}
+            pressDepth={6}
+            style={[dynamicStyles.action, dynamicStyles.actionPeriod]}
+            contentStyle={dynamicStyles.actionContent}
           >
-            <View style={[dynamicStyles.actionIconCircle, { backgroundColor: `${accentColor}20` }]}>
+            <View style={[dynamicStyles.actionIconCircle, { backgroundColor: addOpacityToHex(accentColor, 0.15), borderColor: accentColor }]}>
               <Droplets size={18} color={accentColor} />
             </View>
             <Text style={[dynamicStyles.actionText, { color: theme.textPrimary }]}>Log Period</Text>
-          </TouchableOpacity>
+          </NeuPressable>
         )}
 
-        <TouchableOpacity
-          style={[dynamicStyles.action, dynamicStyles.actionFilled, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
+        <NeuPressable
           onPress={onAddSymptoms}
+          backgroundColor={theme.cardBackground}
+          shadowColor={accentColor}
+          borderRadius={16}
+          pressDepth={6}
+          style={[dynamicStyles.action, dynamicStyles.actionFilled]}
+          contentStyle={dynamicStyles.actionContent}
         >
-          <View style={[dynamicStyles.actionIconCircle, { backgroundColor: `${accentColor}20` }]}>
+          <View style={[dynamicStyles.actionIconCircle, { backgroundColor: addOpacityToHex(accentColor, 0.15), borderColor: accentColor }]}>
             <Activity size={18} color={accentColor} />
           </View>
           <Text
@@ -123,33 +153,40 @@ export default function TodaySummaryCard({
               { color: theme.textPrimary }
             ]}
           >
-            {hasSymptoms ? 'Edit Symtoms' : 'Add Symtoms'}
+            {hasSymptoms ? 'Edit Symptoms' : 'Add Symptoms'}
           </Text>
-        </TouchableOpacity>
+        </NeuPressable>
 
-        <TouchableOpacity 
-          style={[dynamicStyles.action, { backgroundColor: theme.cardBackground, borderColor: theme.border }]} 
+        <NeuPressable
           onPress={onAddNote}
+          backgroundColor={theme.cardBackground}
+          shadowColor={accentColor}
+          borderRadius={16}
+          pressDepth={6}
+          style={[dynamicStyles.action]}
+          contentStyle={dynamicStyles.actionContent}
         >
-          <View style={[dynamicStyles.actionIconCircle, { backgroundColor: `${accentColor}20` }]}>
+          <View style={[dynamicStyles.actionIconCircle, { backgroundColor: addOpacityToHex(accentColor, 0.15), borderColor: accentColor }]}>
             <Plus size={18} color={accentColor} />
           </View>
           <Text style={[dynamicStyles.actionText, { color: theme.textPrimary }]}>Add Note</Text>
-        </TouchableOpacity>
+        </NeuPressable>
       </View>
 
       {/* SYMPTOMS SUMMARY */}
       {hasSymptoms && summary && (
-        <View style={[dynamicStyles.symptomsCard, { backgroundColor: `${accentColor}20`, borderColor: theme.border }]}>
+        <View style={[dynamicStyles.symptomsCard, { backgroundColor: addOpacityToHex(accentColor, 0.08), borderColor: addOpacityToHex(accentColor, 0.3) }]}>
           <View style={dynamicStyles.symptomsHeader}>
             <View style={dynamicStyles.symptomsHeaderLeft}>
-              <Activity size={18} color={accentColor} />
+              <View style={[dynamicStyles.symptomsIconWrapper, { backgroundColor: accentColor }]}>
+                <Activity size={18} color={theme.cardBackground} />
+              </View>
               <AppText style={[dynamicStyles.symptomsTitle, { color: theme.textPrimary }]}>Today's Symptoms</AppText>
             </View>
 
-            <View style={[dynamicStyles.summaryBadge, { backgroundColor: `${accentColor}20` }]}>
+            <View style={[dynamicStyles.summaryBadge, { backgroundColor: summary.color, borderColor: summary.color }]}>
               <Text style={dynamicStyles.summaryEmoji}>{summary.icon}</Text>
-              <AppText style={[dynamicStyles.summaryText, { color: accentColor }]}>
+              <AppText style={[dynamicStyles.summaryText, { color: theme.cardBackground }]}>
                 {summary.text}
               </AppText>
             </View>
@@ -170,7 +207,7 @@ export default function TodaySummaryCard({
                   <Text style={dynamicStyles.symptomEmoji}>{emoji}</Text>
                   <Text style={[dynamicStyles.symptomLabel, { color: theme.textPrimary }]}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
 
-                  <View style={dynamicStyles.bar}>
+                  <View style={[dynamicStyles.bar, { backgroundColor: addOpacityToHex(color, 0.2), borderColor: addOpacityToHex(color, 0.3) }]}>
                     <View
                       style={[
                         dynamicStyles.barFill,
@@ -185,33 +222,45 @@ export default function TodaySummaryCard({
             })}
           </View>
 
-          <TouchableOpacity 
-            style={[dynamicStyles.editSymptoms, { borderColor: theme.border }]} 
+          <NeuPressable
             onPress={onAddSymptoms}
+            backgroundColor={theme.cardBackground}
+            shadowColor={accentColor}
+            borderRadius={12}
+            pressDepth={5}
+            style={dynamicStyles.editSymptomsWrapper}
+            contentStyle={dynamicStyles.editSymptomsContent}
           >
             <TrendingUp size={14} color={accentColor} />
             <Text style={[dynamicStyles.editSymptomsText, { color: accentColor }]}>Edit Symptoms</Text>
-          </TouchableOpacity>
+          </NeuPressable>
         </View>
       )}
 
       {/* QUICK NOTES */}
       {hasNotes && (
-        <View style={dynamicStyles.notesSection}>
+        <View style={[dynamicStyles.notesSection, { borderTopColor: addOpacityToHex(accentColor, 0.2) }]}>
           <View style={dynamicStyles.notesHeader}>
-            <FileText size={18} color={accentColor} />
+            <View style={[dynamicStyles.notesIconWrapper, { backgroundColor: accentColor }]}>
+              <FileText size={18} color={theme.cardBackground} />
+            </View>
             <AppText style={[dynamicStyles.notesTitle, { color: theme.textPrimary }]}>Quick Notes ({quickNotes.length})</AppText>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={dynamicStyles.notesRow}>
             {quickNotes.map((note, i) => (
-              <TouchableOpacity
+              <NeuPressable
                 key={note.id || i}
-                style={dynamicStyles.noteCard}
                 onPress={() => onEditNote(note)}
+                backgroundColor={theme.cardBackground}
+                shadowColor="#10b981"
+                borderRadius={18}
+                pressDepth={6}
+                style={dynamicStyles.noteCardWrapper}
+                contentStyle={dynamicStyles.noteCardContent}
               >
                 {note.icon && (
-                  <View style={dynamicStyles.noteIconWrap}>
+                  <View style={[dynamicStyles.noteIconWrap, { backgroundColor: addOpacityToHex('#10b981', 0.15), borderColor: '#10b981' }]}>
                     <Text style={dynamicStyles.noteIcon}>{note.icon}</Text>
                   </View>
                 )}
@@ -226,23 +275,28 @@ export default function TodaySummaryCard({
                 </View>
 
                 {note.reminder && (
-                  <View style={dynamicStyles.noteReminder}>
-                    <Text>🔔</Text>
+                  <View style={[dynamicStyles.noteReminder, { backgroundColor: accentColor, borderColor: accentColor }]}>
+                    <Text style={{ color: theme.cardBackground }}>🔔</Text>
                   </View>
                 )}
-              </TouchableOpacity>
+              </NeuPressable>
             ))}
 
             {/* ADD NEW NOTE */}
-            <TouchableOpacity 
-              style={[dynamicStyles.addNoteCard, { borderColor: theme.border }]} 
+            <NeuPressable
               onPress={onAddNote}
+              backgroundColor={theme.cardBackground}
+              shadowColor={accentColor}
+              borderRadius={18}
+              pressDepth={6}
+              style={dynamicStyles.addNoteCardWrapper}
+              contentStyle={[dynamicStyles.addNoteCardContent, { borderColor: accentColor, borderStyle: 'dashed' }]}
             >
-              <View style={[dynamicStyles.addNoteIcon, { backgroundColor: `${accentColor}20` }]}>
+              <View style={[dynamicStyles.addNoteIcon, { backgroundColor: addOpacityToHex(accentColor, 0.15), borderColor: accentColor }]}>
                 <Plus size={26} color={accentColor} />
               </View>
               <Text style={[dynamicStyles.addNoteText, { color: accentColor }]}>Add Note</Text>
-            </TouchableOpacity>
+            </NeuPressable>
           </ScrollView>
         </View>
       )}
@@ -250,9 +304,17 @@ export default function TodaySummaryCard({
       {/* EMPTY STATE */}
       {!hasAnyData && (
         <View style={dynamicStyles.empty}>
-          <View style={[dynamicStyles.emptyIcon, { backgroundColor: `${accentColor}20` }]}>
-            <Calendar size={28} color={theme.textSecondary} />
-          </View>
+          <NeuPressable
+            backgroundColor={accentColor}
+            shadowColor={accentColor}
+            borderRadius={20}
+            pressDepth={0}
+            style={dynamicStyles.emptyIconWrapper}
+            contentStyle={dynamicStyles.emptyIconContent}
+            disabled={true}
+          >
+            <Calendar size={28} color={theme.cardBackground} />
+          </NeuPressable>
           <AppText style={[dynamicStyles.emptyTitle, { color: theme.textPrimary }]}>Nothing logged yet</AppText>
           <AppText style={[dynamicStyles.emptySubtitle, { color: theme.textSecondary }]}>
             Start tracking your cycle using the buttons above.
@@ -269,16 +331,19 @@ export default function TodaySummaryCard({
 
 const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
   card: {
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginTop: 20,
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
+    marginBottom: 200,
+    borderRadius: 24,
+    padding: 0,
+    borderWidth: 3,
+    borderColor: accentColor,
+    backgroundColor: theme.cardBackground,
     shadowColor: accentColor,
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 0,
+    shadowOffset: { width: 6, height: 6 },
+    // elevation: 8,
   },
 
   // HEADER
@@ -286,80 +351,94 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 18,
+    borderBottomWidth: 2,
   },
   headerLeft: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
     alignItems: 'center',
   },
-  dateIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+  dateIconWrapper: {
+    alignSelf: 'flex-start',
+  },
+  dateIconContent: {
+    width: 48,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   date: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.4,
   },
   today: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 3,
+    opacity: 0.7,
   },
 
-  // PERIOD BADGE (Keep data colors unchanged)
+  // PERIOD BADGE
   periodBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: `${accentColor}20`,
-    borderRadius: 18,
-    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 8,
+    borderWidth: 2,
   },
   periodDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: accentColor,
   },
   periodText: {
-    color: accentColor,
-    fontWeight: '600',
+    fontWeight: '800',
     fontSize: 12,
+    letterSpacing: 0.5,
   },
 
   // QUICK ACTIONS
   actions: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20,
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 2,
   },
   action: {
     flex: 1,
-    height: 64,
+    alignSelf: 'stretch',
+  },
+  actionContent: {
+    height: 88,
     flexDirection: 'column',
-    gap: 4,
+    gap: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    borderWidth: 1.4,
+    borderWidth: 2,
+    borderRadius: 16,
   },
   actionFilled: {},
-  actionPeriod: {
-    borderColor: accentColor,
-  },
+  actionPeriod: {},
   actionIconCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
   },
   actionText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   periodEmoji: {
     fontSize: 16,
@@ -367,168 +446,232 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
 
   // SYMPTOMS SECTION
   symptomsCard: {
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 3,
+    marginHorizontal: 16,
+    marginTop: 16,
     marginBottom: 16,
   },
   symptomsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
     alignItems: 'center',
   },
   symptomsHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  symptomsIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   symptomsTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
 
   summaryBadge: {
     flexDirection: 'row',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    gap: 8,
     alignItems: 'center',
+    borderWidth: 2,
   },
   summaryEmoji: {
-    fontSize: 16,
+    fontSize: 14,
   },
   summaryText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
-  symptomList: { gap: 14 },
+  symptomList: { gap: 18 },
   symptomItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 14,
   },
-  symptomEmoji: { fontSize: 20 },
+  symptomEmoji: { fontSize: 22 },
   symptomLabel: {
-    width: 60,
-    fontSize: 13,
-    fontWeight: '600',
+    width: 70,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
   bar: {
     flex: 1,
-    height: 8,
-    backgroundColor: `${accentColor}20`,
-    borderRadius: 4,
+    height: 10,
+    borderRadius: 8,
     overflow: 'hidden',
+    borderWidth: 2,
   },
-  barFill: { height: '100%' },
+  barFill: { 
+    height: '100%',
+    borderRadius: 6,
+  },
   symptomValue: {
-    width: 30,
+    width: 36,
     textAlign: 'right',
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '800',
   },
 
-  editSymptoms: {
-    marginTop: 14,
+  editSymptomsWrapper: {
+    marginTop: 20,
+    alignSelf: 'stretch',
+  },
+  editSymptomsContent: {
     flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
+    gap: 10,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderRadius: 14,
   },
   editSymptomsText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
 
   // NOTES SECTION
-  notesSection: { marginTop: 4 },
+  notesSection: { 
+    paddingTop: 20,
+    paddingBottom: 20,
+    borderTopWidth: 2,
+  },
   notesHeader: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 18,
     alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  notesIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   notesTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  notesRow: { gap: 12 },
-  noteCard: {
-    width: 170,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
+  notesRow: { 
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  noteCardWrapper: {
+    width: 200,
+    alignSelf: 'flex-start',
+  },
+  noteCardContent: {
+    padding: 18,
     position: 'relative',
+    alignItems: 'flex-start',
+    borderWidth: 2,
+    borderRadius: 18,
   },
-  noteIconWrap: { marginBottom: 8 },
-  noteIcon: { fontSize: 24 },
-  noteTextWrap: { flex: 1 },
+  noteIconWrap: { 
+    marginBottom: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  noteIcon: { fontSize: 26 },
+  noteTextWrap: { flex: 1, width: '100%' },
   noteTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 8,
+    letterSpacing: -0.2,
   },
   notePreview: {
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 18,
   },
   noteReminder: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#fef3c7',
-    padding: 4,
+    top: 14,
+    right: 14,
+    padding: 6,
     borderRadius: 10,
+    borderWidth: 2,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  addNoteCard: {
-    width: 160,
-    paddingVertical: 22,
-    borderRadius: 16,
-    borderWidth: 1.4,
-    borderStyle: 'dashed',
+  addNoteCardWrapper: {
+    width: 180,
+    alignSelf: 'flex-start',
+  },
+  addNoteCardContent: {
+    paddingVertical: 28,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderRadius: 18,
   },
   addNoteIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    borderWidth: 2,
   },
   addNoteText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
 
   // EMPTY STATE
   empty: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 48,
+    paddingHorizontal: 20,
   },
-  emptyIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  emptyIconWrapper: {
+    alignSelf: 'center',
+  },
+  emptyIconContent: {
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    marginTop: 16,
+    marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
-    marginTop: 4,
+    lineHeight: 20,
+    fontWeight: '500',
+    paddingHorizontal: 20,
   },
 });

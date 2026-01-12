@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AppText from '@/components/core-components/AppText';
 import { useTheme } from '@/src/context/ThemeContext';
 import api from '@/lib/api';
+import NeuButton from '@/components/core-components/NeuButton';
+import { darkenColor } from '@/src/utils';
 
 const ForgotPasswordScreen = () => {
   const { theme, accentColor } = useTheme();
@@ -78,12 +80,19 @@ const ForgotPasswordScreen = () => {
               We've sent password reset instructions to{'\n'}
               <AppText style={[dynamicStyles.emailText, { color: theme.textPrimary }]}>{email}</AppText>
             </AppText>
-            <TouchableOpacity
-              style={[dynamicStyles.backButton, { backgroundColor: accentColor, shadowColor: accentColor }]}
+            <NeuButton
+              title="Back to Login"
               onPress={() => router.back()}
-            >
-              <AppText style={dynamicStyles.backButtonText}>Back to Login</AppText>
-            </TouchableOpacity>
+              textStyle={{
+                fontFamily: 'Bold',
+                color: '#ffffff',
+                fontSize: 16,
+                letterSpacing: 0.8
+              }}
+              backgroundColor={accentColor}
+              shadowColor={darkenColor(accentColor, 10)}
+              style={{ marginTop: 16 }}
+            />
           </View>
         </View>
       </View>
@@ -160,22 +169,21 @@ const ForgotPasswordScreen = () => {
             </View>
 
             {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                dynamicStyles.submitButton,
-                { backgroundColor: accentColor, shadowColor: accentColor },
-                loading && dynamicStyles.submitButtonDisabled,
-              ]}
+            <NeuButton
+              title="Send Reset Link"
               onPress={handleSubmit}
               disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <AppText style={dynamicStyles.submitButtonText}>Send Reset Link</AppText>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+              textStyle={{
+                fontFamily: 'Bold',
+                color: '#ffffff',
+                fontSize: 18,
+                letterSpacing: 0.8
+              }}
+              backgroundColor={accentColor}
+              shadowColor={darkenColor(accentColor, 10)}
+              style={{ marginBottom: 24 }}
+            />
 
             {/* Back to Login */}
             <TouchableOpacity

@@ -19,6 +19,8 @@ import { X, Check } from 'lucide-react-native';
 import AppText from './AppText';
 import FivePointSlider from './FivePointSlider';
 import { useTheme } from '@/src/context/ThemeContext';
+import NeuPressable from './NeuPressable';
+import { addOpacityToHex, darkenColor } from '@/src/utils';
 
 // ============================================================================
 // TYPES
@@ -102,16 +104,24 @@ export default function SymptomTrackerModal({
         <View style={dynamicStyles.overlay}>
           <View style={[dynamicStyles.modalContent, { backgroundColor: theme.cardBackground }]}>
             {/* Header */}
-            <View style={[dynamicStyles.header, { borderBottomColor: theme.border }]}>
+            <View style={[dynamicStyles.header, { borderBottomColor: addOpacityToHex(accentColor, 0.2) }]}>
               <View>
                 <AppText style={[dynamicStyles.title, { color: theme.textPrimary }]}>Symptom Tracker</AppText>
                 <AppText style={[dynamicStyles.subtitle, { color: theme.textSecondary }]}>
                   {new Date(date).toLocaleDateString()}
                 </AppText>
               </View>
-              <TouchableOpacity onPress={onClose} style={dynamicStyles.closeButton}>
-                <X size={24} color={theme.textSecondary} />
-              </TouchableOpacity>
+              <NeuPressable
+                onPress={onClose}
+                backgroundColor={theme.cardBackground}
+                shadowColor={accentColor}
+                borderRadius={18}
+                pressDepth={4}
+                style={dynamicStyles.closeButtonWrapper}
+                contentStyle={[dynamicStyles.closeButtonContent, { borderColor: accentColor, borderWidth: 2 }]}
+              >
+                <X size={20} color={accentColor} />
+              </NeuPressable>
             </View>
 
             <ScrollView
@@ -121,12 +131,20 @@ export default function SymptomTrackerModal({
             >
               {/* Instructions */}
               <View style={[dynamicStyles.instructions, { 
-                backgroundColor: `${accentColor}20`, 
-                borderColor: theme.border 
+                backgroundColor: addOpacityToHex(accentColor, 0.08), 
+                borderColor: addOpacityToHex(accentColor, 0.3) 
               }]}>
-                <View style={[dynamicStyles.instructionsIcon, { backgroundColor: theme.cardBackground }]}>
-                  <Text style={dynamicStyles.instructionsEmoji}>📊</Text>
-                </View>
+                <NeuPressable
+                  backgroundColor={accentColor}
+                  shadowColor={accentColor}
+                  borderRadius={20}
+                  pressDepth={0}
+                  style={dynamicStyles.instructionsIconWrapper}
+                  contentStyle={dynamicStyles.instructionsIconContent}
+                  disabled={true}
+                >
+                  <Text style={dynamicStyles.instructionsEmoji}>🤧</Text>
+                </NeuPressable>
                 <Text style={[dynamicStyles.instructionsText, { color: theme.textPrimary }]}>
                   Track how you're feeling today
                 </Text>
@@ -140,11 +158,11 @@ export default function SymptomTrackerModal({
                 {SYMPTOM_FIELDS.map((field, index) => (
                   <View key={field.key} style={[dynamicStyles.symptomCard, { 
                     backgroundColor: theme.cardBackground, 
-                    borderColor: theme.border 
+                    borderColor: SYMPTOM_TRACK_COLORS[field.key] 
                   }]}>
                     <View style={dynamicStyles.symptomCardHeader}>
                       <View style={dynamicStyles.symptomCardHeaderLeft}>
-                        <View style={[dynamicStyles.symptomIconBadge, { backgroundColor: SYMPTOM_TRACK_COLORS[field.key] + '20' }]}>
+                        <View style={[dynamicStyles.symptomIconBadge, { backgroundColor: SYMPTOM_TRACK_COLORS[field.key], borderColor: SYMPTOM_TRACK_COLORS[field.key] }]}>
                           <Text style={dynamicStyles.symptomEmoji}>
                             {field.key === 'mood' ? '😊' : field.key === 'cramps' ? '💢' : '⚡'}
                           </Text>
@@ -154,9 +172,9 @@ export default function SymptomTrackerModal({
                           <Text style={[dynamicStyles.symptomHelper, { color: theme.textSecondary }]}>{field.helper}</Text>
                         </View>
                       </View>
-                      <View style={[dynamicStyles.symptomValueBadge, { backgroundColor: `${accentColor}20` }]}>
-                        <Text style={[dynamicStyles.symptomValueText, { color: accentColor }]}>{symptomDraft[field.key]}</Text>
-                        <Text style={[dynamicStyles.symptomValueLabel, { color: theme.textSecondary }]}>/5</Text>
+                      <View style={[dynamicStyles.symptomValueBadge, { backgroundColor: accentColor, borderColor: accentColor }]}>
+                        <Text style={[dynamicStyles.symptomValueText, { color: theme.cardBackground }]}>{symptomDraft[field.key]}</Text>
+                        <Text style={[dynamicStyles.symptomValueLabel, { color: theme.cardBackground }]}>/5</Text>
                       </View>
                     </View>
                     <View style={dynamicStyles.symptomSliderWrapper}>
@@ -175,23 +193,30 @@ export default function SymptomTrackerModal({
             </ScrollView>
 
             {/* Actions */}
-            <View style={[dynamicStyles.actions, { borderTopColor: theme.border }]}>
-              <TouchableOpacity
-                style={[dynamicStyles.cancelButton, { 
-                  backgroundColor: theme.cardBackground, 
-                  borderColor: theme.border 
-                }]}
+            <View style={[dynamicStyles.actions, { borderTopColor: addOpacityToHex(accentColor, 0.2) }]}>
+              <NeuPressable
                 onPress={onClose}
+                backgroundColor={theme.cardBackground}
+                shadowColor={theme.textSecondary}
+                borderRadius={16}
+                pressDepth={6}
+                style={dynamicStyles.cancelButtonWrapper}
+                contentStyle={[dynamicStyles.cancelButtonContent, { borderColor: theme.textSecondary, borderWidth: 2 }]}
               >
                 <Text style={[dynamicStyles.cancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[dynamicStyles.saveButton, { backgroundColor: accentColor }]}
+              </NeuPressable>
+              <NeuPressable
                 onPress={handleSave}
+                backgroundColor={theme.cardBackground}
+                shadowColor={darkenColor(accentColor, 0.4)}
+                borderRadius={16}
+                pressDepth={6}
+                style={dynamicStyles.saveButtonWrapper}
+                contentStyle={[dynamicStyles.saveButtonContent, { borderColor: accentColor, borderWidth: 2 }]}
               >
-                <Check size={18} color="#fff" />
-                <Text style={dynamicStyles.saveButtonText}>Save Symptoms</Text>
-              </TouchableOpacity>
+                {/* <Check size={18} color="#fff" /> */}
+                <Text style={[dynamicStyles.saveButtonText, { color: accentColor }]}>Save Symptoms</Text>
+              </NeuPressable>
             </View>
           </View>
         </View>
@@ -214,8 +239,14 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderTopColor: accentColor,
+    borderLeftColor: accentColor,
+    borderRightColor: accentColor,
     maxHeight: '90%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
@@ -224,110 +255,128 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    paddingTop: 24,
+    paddingBottom: 18,
+    borderBottomWidth: 2,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: 4,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '700',
   },
-  closeButton: {
-    padding: 4,
+  closeButtonWrapper: {
+    alignSelf: 'flex-start',
+  },
+  closeButtonContent: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
   },
   content: {
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   instructions: {
-    marginBottom: 24,
-    padding: 20,
-    borderRadius: 16,
+    marginBottom: 28,
+    padding: 24,
+    borderRadius: 20,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 3,
   },
-  instructionsIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  instructionsIconWrapper: {
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  instructionsIconContent: {
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   instructionsEmoji: {
-    fontSize: 28,
+    fontSize: 32,
   },
   instructionsText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.2,
   },
   instructionsSubtext: {
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
+    fontWeight: '500',
   },
   symptomsContainer: {
-    gap: 16,
+    gap: 18,
+    marginBottom: 40,
   },
   symptomCard: {
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.5,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 0,
+    elevation: 4,
   },
   symptomCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   symptomCardHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
     flex: 1,
   },
   symptomIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
   },
   symptomEmoji: {
-    fontSize: 22,
+    fontSize: 26,
   },
   symptomLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 4,
+    letterSpacing: -0.2,
   },
   symptomHelper: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '500',
   },
   symptomValueBadge: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 2,
   },
   symptomValueText: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
   },
   symptomValueLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     marginLeft: 2,
   },
   symptomSliderWrapper: {
@@ -335,36 +384,42 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
     paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
+    paddingTop: 20,
+    borderTopWidth: 2,
   },
-  cancelButton: {
+  cancelButtonWrapper: {
     flex: 1,
+    alignSelf: 'stretch',
+  },
+  cancelButtonContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    paddingVertical: 16,
+    borderRadius: 16,
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  saveButton: {
+  saveButtonWrapper: {
     flex: 1,
+    alignSelf: 'stretch',
+  },
+  saveButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
+    gap: 10,
+    paddingVertical: 16,
   },
   saveButtonText: {
     color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+    fontWeight: '800',
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
 });
 

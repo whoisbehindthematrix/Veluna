@@ -70,14 +70,14 @@ export default function InitialLayout() {
     
     // Debug: Log state changes
     if (__DEV__) {
-      console.log('👁️ [InitialLayout] Auth state:', {
-        hasUser: !!user,
-        userId: user?.id,
-        onboardingCompleted,
-        isInitialized,
-        status,
-        currentPath: pathname || segments.join('/'),
-      });
+      // console.log('👁️ [InitialLayout] Auth state:', {
+      //   hasUser: !!user,
+      //   userId: user?.id,
+      //   onboardingCompleted,
+      //   isInitialized,
+      //   status,
+      //   currentPath: pathname || segments.join('/'),
+      // });
     }
   }, [user, status, onboardingCompleted, isInitialized, router, segments, pathname]);
 

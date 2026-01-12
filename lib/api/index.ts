@@ -3,7 +3,7 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 
-const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api`
+const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_URL}/api` || 'https://kitfitx.onrender.com/api'
 
 // Reactotron logging (only in dev)
 let Reactotron: any = null;
@@ -98,13 +98,13 @@ api.interceptors.response.use(
   (response) => {
     // Log successful response in dev mode
     if (__DEV__) {
-      log('✅ API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.config.url,
-        method: response.config.method?.toUpperCase(),
-        data: response.data,
-      });
+      // log('✅ API Response:', {
+      //   status: response.status,
+      //   statusText: response.statusText,
+      //   url: response.config.url,
+      //   method: response.config.method?.toUpperCase(),
+      //   data: response.data,
+      // });
     }
     return response;
   },

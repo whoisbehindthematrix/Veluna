@@ -72,6 +72,7 @@ export interface FoodLogEntry {
   fat: number;
   mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
   imageUri?: string;
+  note?: string;
 }
 export interface CycleState {
   currentPhase: PhaseInfo;

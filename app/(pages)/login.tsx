@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
-import { signInWithEmail, clearAuthError, syncUser } from '@/src/store/slices/authSlice';
+import { signInWithEmail, clearAuthError, syncUser, signInWithGoogle } from '@/src/store/slices/authSlice';
 import AppText from '@/components/core-components/AppText';
 import { AppDispatch, RootState } from '@/src/store';
 import { Ionicons } from '@expo/vector-icons';
 import Logo from '@/assets/images/logo';
 import { useTheme } from '@/src/context/ThemeContext';
+import NeuButton from '@/components/core-components/NeuButton';
+import { darkenColor, addOpacityToHex } from '@/src/utils';
 
 const LoginScreen = () => {
   const { theme, accentColor } = useTheme();
@@ -42,7 +44,7 @@ const LoginScreen = () => {
   useEffect(() => {
     if (status === 'succeeded' && user?.id) {
       dispatch(clearAuthError());
-      router.replace('/(tabs)/home'); // your redirect
+      router.replace('/(tabs)'); // your redirect
     }
   }, [status, user?.id]);
 
@@ -85,6 +87,24 @@ const LoginScreen = () => {
       setIsSubmitting(false);
     }
   };
+
+  const handleGoogleLogin = async () => {
+    if (isSubmitting || status === 'loading') return;
+  
+    try {
+      setIsSubmitting(true);
+  
+      await dispatch(signInWithGoogle()).unwrap();
+      await dispatch(syncUser()).unwrap();
+  
+      // navigation handled by your useEffect (status + user.id)
+    } catch (err) {
+      console.log('Google login error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
 
   return (
     <KeyboardAvoidingView
@@ -206,21 +226,21 @@ const LoginScreen = () => {
               </AppText>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                dynamicStyles.submitButton,
-                { backgroundColor: accentColor },
-                isSubmitting && dynamicStyles.submitButtonDisabled,
-              ]}
+            <NeuButton
+              title="Sign In"
               onPress={handleSubmit}
               disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <AppText style={dynamicStyles.submitButtonText}>Sign In</AppText>
-              )}
-            </TouchableOpacity>
+              loading={isSubmitting}
+              textStyle={{
+                fontFamily: 'Bold',
+                color: '#ffffff',
+                fontSize: 18,
+                letterSpacing: 0.8
+              }}
+              backgroundColor={accentColor}
+              shadowColor={darkenColor(accentColor, 10)}
+              style={{ marginBottom: 24 }}
+            />
 
             <View style={dynamicStyles.divider}>
               <View style={[dynamicStyles.dividerLine, { backgroundColor: theme.border }]} />
@@ -228,20 +248,23 @@ const LoginScreen = () => {
               <View style={[dynamicStyles.dividerLine, { backgroundColor: theme.border }]} />
             </View>
 
-            <TouchableOpacity
-              style={[dynamicStyles.socialButton, {
-                backgroundColor: theme.cardBackground,
-                borderColor: theme.border,
-              }]}
-              activeOpacity={0.8}
-              onPress={() => { }}
-              disabled={status === 'loading'}
-            >
-              <Ionicons name="logo-google" size={20} color={accentColor} />
-              <AppText style={[dynamicStyles.socialButtonText, { color: accentColor }]}>
-                Continue with Google
-              </AppText>
-            </TouchableOpacity>
+            <View style={{ marginBottom: 24,  }}>
+              <NeuButton
+                title="Continue with Google"
+                onPress={handleGoogleLogin}
+                disabled={status === 'loading'}
+                loading={status === 'loading'}
+                leftIcon={<Ionicons name="logo-google" size={20} color={accentColor} />}
+                textStyle={{
+                  fontFamily: 'Bold',
+                  color: accentColor,
+                  fontSize: 16,
+                  letterSpacing: 0.8
+                }}
+                backgroundColor={theme.cardBackground}
+                shadowColor={addOpacityToHex(theme.border, 0.3)}
+              />
+            </View>
 
             <View style={dynamicStyles.toggleContainer}>
               <AppText style={[dynamicStyles.toggleText, { color: theme.textSecondary }]}>

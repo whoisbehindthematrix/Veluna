@@ -17,6 +17,8 @@ import { AppDispatch, RootState } from '@/src/store';
 import { Ionicons } from '@expo/vector-icons';
 import Logo from '@/assets/images/logo';
 import { useTheme } from '@/src/context/ThemeContext';
+import NeuButton from '@/components/core-components/NeuButton';
+import { darkenColor, addOpacityToHex } from '@/src/utils';
 
 const SignupScreen = () => {
   const { theme, accentColor } = useTheme();
@@ -258,22 +260,21 @@ const SignupScreen = () => {
             </View>
 
             {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                dynamicStyles.submitButton,
-                { backgroundColor: accentColor, shadowColor: accentColor },
-                status === 'loading' && dynamicStyles.submitButtonDisabled,
-              ]}
+            <NeuButton
+              title="Sign Up"
               onPress={handleSubmit}
               disabled={status === 'loading'}
-              activeOpacity={0.8}
-            >
-              {status === 'loading' ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <AppText style={dynamicStyles.submitButtonText}>Sign Up</AppText>
-              )}
-            </TouchableOpacity>
+              loading={status === 'loading'}
+              textStyle={{
+                fontFamily: 'Bold',
+                color: '#ffffff',
+                fontSize: 18,
+                letterSpacing: 0.8
+              }}
+              backgroundColor={accentColor}
+              shadowColor={darkenColor(accentColor, 10)}
+              style={{ marginBottom: 24 }}
+            />
 
             {/* Divider */}
             <View style={dynamicStyles.divider}>
@@ -283,23 +284,23 @@ const SignupScreen = () => {
             </View>
 
             {/* Social Login */}
-            <TouchableOpacity
-              style={[dynamicStyles.socialButton, { backgroundColor: theme.cardBackground, borderColor: theme.border }]}
-              activeOpacity={0.8}
-              onPress={() => { }}
-              disabled={status === 'loading'}
-            >
-              {status === 'loading' ? (
-                <ActivityIndicator color={accentColor} />
-              ) : (
-                <>
-                  <Ionicons name="logo-google" size={20} color={accentColor} />
-                  <AppText style={[dynamicStyles.socialButtonText, { color: accentColor }]}>
-                    Continue with Google
-                  </AppText>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={{ marginBottom: 24, borderWidth: 2, borderColor: theme.border, borderRadius: 14 }}>
+              <NeuButton
+                title="Continue with Google"
+                onPress={() => { }}
+                disabled={status === 'loading'}
+                loading={status === 'loading'}
+                leftIcon={<Ionicons name="logo-google" size={20} color={accentColor} />}
+                textStyle={{
+                  fontFamily: 'Bold',
+                  color: accentColor,
+                  fontSize: 16,
+                  letterSpacing: 0.8
+                }}
+                backgroundColor={theme.cardBackground}
+                shadowColor={addOpacityToHex(theme.border, 0.3)}
+              />
+            </View>
 
             {/* Login Link */}
             <View style={dynamicStyles.toggleContainer}>
