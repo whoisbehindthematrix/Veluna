@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useRouter } from 'expo-router';
@@ -27,11 +28,14 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailSignInLoading, setEmailSignInLoading] = useState(false);
+  const [googleSignInLoading, setGoogleSignInLoading] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const { status, error, user } = useSelector((state: RootState) => state.auth);
+
+  const anyLoading = emailSignInLoading || googleSignInLoading || status === 'loading';
 
   const dynamicStyles = useMemo(() => createStyles(theme, accentColor), [theme, accentColor]);
 
@@ -62,46 +66,36 @@ const LoginScreen = () => {
   };
 
   const handleSubmit = async () => {
-    // Prevent duplicate submissions
-    if (isSubmitting || status === 'loading') {
-      return;
-    }
+    if (emailSignInLoading || googleSignInLoading || status === 'loading') return;
 
     const emailErr = validateEmail(email);
     const passwordErr = validatePassword(password);
-
     setEmailError(emailErr);
     setPasswordError(passwordErr);
-
     if (emailErr || passwordErr) return;
 
+    setEmailSignInLoading(true);
     try {
-      setIsSubmitting(true);
-
       await dispatch(signInWithEmail({ email, password })).unwrap();
       await dispatch(syncUser()).unwrap();
-
+      // Keep loading until useEffect redirects
     } catch (err) {
       console.log(err);
-    } finally {
-      setIsSubmitting(false);
+      setEmailSignInLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    if (isSubmitting || status === 'loading') return;
-  
+    if (emailSignInLoading || googleSignInLoading || status === 'loading') return;
+
+    setGoogleSignInLoading(true);
     try {
-      setIsSubmitting(true);
-  
+      // signInWithGoogle: Supabase OAuth → saveTokens → POST /auth/google (sync user, same shape as login)
       await dispatch(signInWithGoogle()).unwrap();
-      await dispatch(syncUser()).unwrap();
-  
-      // navigation handled by your useEffect (status + user.id)
+      // Keep loading until useEffect redirects
     } catch (err) {
       console.log('Google login error:', err);
-    } finally {
-      setIsSubmitting(false);
+      setGoogleSignInLoading(false);
     }
   };
   
@@ -164,7 +158,7 @@ const LoginScreen = () => {
                   value={email}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  editable={!isSubmitting}
+                  editable={!anyLoading}
                 />
               </View>
               {emailError ? (
@@ -199,7 +193,7 @@ const LoginScreen = () => {
                   }}
                   value={password}
                   secureTextEntry={!showPassword}
-                  editable={!isSubmitting}
+                  editable={!anyLoading}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -229,8 +223,8 @@ const LoginScreen = () => {
             <NeuButton
               title="Sign In"
               onPress={handleSubmit}
-              disabled={isSubmitting}
-              loading={isSubmitting}
+              disabled={anyLoading}
+              loading={emailSignInLoading}
               textStyle={{
                 fontFamily: 'Bold',
                 color: '#ffffff',
@@ -248,12 +242,12 @@ const LoginScreen = () => {
               <View style={[dynamicStyles.dividerLine, { backgroundColor: theme.border }]} />
             </View>
 
-            <View style={{ marginBottom: 24,  }}>
+            <View style={{ marginBottom: 24 }}>
               <NeuButton
                 title="Continue with Google"
                 onPress={handleGoogleLogin}
-                disabled={status === 'loading'}
-                loading={status === 'loading'}
+                disabled={anyLoading}
+                loading={googleSignInLoading}
                 leftIcon={<Ionicons name="logo-google" size={20} color={accentColor} />}
                 textStyle={{
                   fontFamily: 'Bold',
@@ -279,11 +273,11 @@ const LoginScreen = () => {
       </ScrollView>
 
       {/* Full-screen loading overlay */}
-      {isSubmitting && (
+      {/* {anyLoading && (
         <View style={[dynamicStyles.loadingOverlay, { backgroundColor: 'rgba(0,0,0,0.15)' }]}>
           <ActivityIndicator size="large" color={accentColor} />
         </View>
-      )}
+      )} */}
     </KeyboardAvoidingView>
   );
 };
@@ -436,14 +430,21 @@ const createStyles = (theme: any, accentColor: string) => StyleSheet.create({
     fontWeight: '700',
   },
   loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 999,
+  },
+  loadingCard: {
+    paddingHorizontal: 32,
+    paddingVertical: 28,
+    borderRadius: 20,
+    alignItems: 'center',
+    minWidth: 200,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

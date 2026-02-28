@@ -18,7 +18,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, Zap, RefreshCcw, Check, Salad, Sun, Apple, Moon } from 'lucide-react-native';
 import { useTheme } from '@/src/context/ThemeContext';
-import { supabase } from '@/lib/supabase';
+import { getAccessToken } from '@/lib/api';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -51,15 +51,43 @@ export const FoodScanModal: React.FC<FoodScanModalProps> = ({
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Use the same API base URL logic as the main API client
   const apiBase = useMemo(() => {
+    console.log('🔧 [FoodScan] Computing API base URL...');
+    console.log('🔧 [FoodScan] Environment variables:', {
+      EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL,
+      hasEnvUrl: !!process.env.EXPO_PUBLIC_API_URL,
+    });
+    
     const envUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-    if (envUrl) return envUrl;
+    if (envUrl) {
+      console.log('✅ [FoodScan] Using API URL from env:', envUrl);
+      return envUrl;
+    }
+    
+    // Fallback for local development
+    console.log('🔧 [FoodScan] Checking Expo config for host...');
     const hostUri = Constants.expoConfig?.hostUri || Constants.expoConfig?.updates?.url;
+    console.log('🔧 [FoodScan] Host URI:', {
+      hostUri,
+      expoConfigHostUri: Constants.expoConfig?.hostUri,
+      expoConfigUpdatesUrl: Constants.expoConfig?.updates?.url,
+    });
+    
     if (hostUri) {
       const host = hostUri.split(':')[0];
-      if (host) return `http://${host}:4000`;
+      if (host) {
+        const localUrl = `http://${host}:4000`;
+        console.log('✅ [FoodScan] Using local API URL from host:', localUrl);
+        return localUrl;
+      }
     }
-    return 'http://10.0.2.2:4000';
+    
+    const fallback = 'http://10.0.2.2:4000';
+    console.log('⚠️ [FoodScan] Using fallback API URL:', fallback);
+    console.log('⚠️ [FoodScan] Make sure EXPO_PUBLIC_API_URL is set in .env file!');
+    return fallback;
   }, []);
   const FLASH_OFF: FlashMode = 'off';
   const FLASH_ON: FlashMode = 'on';
@@ -127,47 +155,142 @@ export const FoodScanModal: React.FC<FoodScanModalProps> = ({
   const handleCapture = async () => {
     if (!cameraRef.current || isProcessing) return;
     try {
+      console.log('📸 [FoodScan] Starting capture...');
       setIsProcessing(true);
+      
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.45, // initial lower quality
         skipProcessing: true,
       });
+      console.log('📸 [FoodScan] Photo captured:', photo.uri);
 
       const compressedUri = await compressIfNeeded(photo.uri);
+      console.log('📸 [FoodScan] Photo compressed:', compressedUri);
       setPhotoUri(compressedUri);
 
       const formData = new FormData();
-      formData.append('photo', {
+      
+      // ✅ FIX: Backend expects 'image' field (multer.single('image')), not 'photo'
+      formData.append('image', {
         uri: compressedUri,
         name: 'food.jpg',
         type: 'image/jpeg',
       } as any);
       formData.append('prompt', 'Scan this meal.');
+      
+      // Log FormData fields for debugging
+      console.log('📦 [FoodScan] FormData created with fields:');
+      console.log('📦 [FoodScan] - image: (file object)');
+      console.log('📦 [FoodScan] - prompt: "Scan this meal."');
+      console.log('📦 [FoodScan] Field names match backend expectation: image ✓');
 
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+      // Use the same token system as the rest of the app
+      console.log('🔑 [FoodScan] Retrieving access token...');
+      const token = await getAccessToken();
+      
+      if (!token) {
+        console.error('❌ [FoodScan] No token found!');
+        throw new Error('No authentication token found. Please log in again.');
+      }
 
-      const response = await fetch(`${apiBase}/api/food/scan`, {
+      console.log('✅ [FoodScan] Token retrieved:', {
+        tokenLength: token.length,
+        tokenPreview: token.substring(0, 30) + '...',
+        tokenEnd: '...' + token.substring(token.length - 10),
+      });
+
+      const requestUrl = `${apiBase}/api/food/scan`;
+      console.log('🌐 [FoodScan] Request Details:', {
+        apiBase,
+        fullUrl: requestUrl,
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        hasToken: !!token,
+        tokenLength: token.length,
+      });
+
+      console.log('📤 [FoodScan] Sending request...');
+      const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          // Don't set Content-Type for FormData - let fetch set it with boundary automatically
+        },
         body: formData,
       });
 
-      const json = await response.json();
+      console.log('📥 [FoodScan] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
 
-      if (!response.ok || !json.data) {
-        throw new Error(json.error || 'Analysis failed');
+      const json = await response.json();
+      console.log('📥 [FoodScan] Response JSON:', {
+        success: json?.success,
+        hasData: !!json?.data,
+        hasError: !!json?.error,
+        hasMessage: !!json?.message,
+        saved: json?.saved,
+        dataKeys: json?.data ? Object.keys(json.data) : null,
+        error: json?.error,
+        message: json?.message,
+      });
+
+      if (!response.ok) {
+        const errorMessage = json?.error || json?.message || `Server error (${response.status})`;
+        console.error('❌ [FoodScan] API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorMessage,
+          fullJson: json,
+          url: requestUrl,
+        });
+        throw new Error(errorMessage);
       }
+
+      if (!json.data) {
+        console.error('❌ [FoodScan] No data in response:', json);
+        throw new Error('No data returned from server');
+      }
+
+      console.log('✅ [FoodScan] Success! Data:', {
+        foodName: json.data?.foodName,
+        calories: json.data?.calories,
+        protein: json.data?.proteinGrams,
+        carbs: json.data?.carbsGrams,
+        fat: json.data?.fatGrams,
+      });
 
       setResult(json.data as ScanResult);
     } catch (error: any) {
-      console.error('Food scan failed', error);
+      console.error('❌ [FoodScan] Error caught:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack,
+        type: typeof error,
+        errorObject: error,
+      });
+      
       setResult(null);
-      Alert.alert(
-        'Scan failed',
-        'Could not reach the scan service. Ensure the API is running and reachable from your device.'
-      );
+      
+      const errorMessage = error?.message || 'Unknown error occurred';
+      let userMessage = 'Could not scan the food item.';
+      
+      if (errorMessage.includes('token') || errorMessage.includes('auth') || errorMessage.includes('Invalid or expired')) {
+        userMessage = 'Authentication failed. Please log out and log in again.';
+        console.error('🔐 [FoodScan] Authentication error - user needs to re-login');
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('Network request failed')) {
+        userMessage = 'Network error. Check your internet connection and ensure the API is running.';
+        console.error('🌐 [FoodScan] Network error - check connection and API URL');
+      } else if (errorMessage) {
+        userMessage = errorMessage;
+      }
+      
+      console.error('❌ [FoodScan] Showing error to user:', userMessage);
+      Alert.alert('Scan failed', userMessage);
     } finally {
+      console.log('🏁 [FoodScan] Processing complete');
       setIsProcessing(false);
     }
   };

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  LayoutChangeEvent,
 } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useRouter } from 'expo-router';
@@ -23,6 +23,8 @@ import {
   LogOut,
 } from 'lucide-react-native';
 import AppText from './AppText';
+import BgPattern from './BgPattern';
+import { darkenColor } from '@/src/utils';
 
 interface DrawerItem {
   label: string;
@@ -35,6 +37,12 @@ interface DrawerItem {
 export default function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { theme, accentColor } = useTheme();
   const router = useRouter();
+  const [headerLayout, setHeaderLayout] = useState({ width: 0, height: 0 });
+
+  const onHeaderLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setHeaderLayout({ width, height });
+  };
 
   const handleNavigation = (route?: string) => {
     if (route) {
@@ -55,7 +63,7 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
     // { label: 'Food', icon: Apple, route: '/(tabs)/food' },
     // { label: 'Exercise', icon: Dumbbell, route: '/(tabs)/exercise' },
     // { label: 'Profile', icon: User, route: '/(tabs)/profile' },
-    { divider: true },
+    // { divider: true },
     { label: 'Tips', icon: BookOpen, route: '/(tabs)/profile' },
     { label: 'Help & Support', icon: HelpCircle, route: undefined },
     { label: 'Settings', icon: Settings, route: '/(pages)/settings' },
@@ -72,7 +80,17 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
       style={dynamicStyles.drawer}
     >
       {/* Drawer Header */}
-      <View style={dynamicStyles.drawerHeader}>
+      <View
+        style={dynamicStyles.drawerHeader}
+        onLayout={onHeaderLayout}
+      >
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <BgPattern
+            width={headerLayout.width}
+            height={headerLayout.height}
+            patternId="drawer-header-pattern"
+          />
+        </View>
         <View style={dynamicStyles.headerContent}>
           <AppText variant="bold" style={dynamicStyles.drawerTitle}>
             Menu
@@ -152,17 +170,19 @@ const createStyles = (theme: any, accentColor: string) =>
   StyleSheet.create({
     drawer: {
       flex: 1,
+
       backgroundColor: theme.cardBackground,
     },
     drawerContent: {
       flex: 1,
+     
     },
     drawerHeader: {
       paddingTop: 60,
       paddingHorizontal: 20,
       paddingBottom: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.border,
+      // borderBottomWidth: 1,
+      // borderBottomColor: theme.border,
     },
     headerContent: {
       flexDirection: 'row',
@@ -171,8 +191,9 @@ const createStyles = (theme: any, accentColor: string) =>
     },
     drawerTitle: {
       fontSize: 28,
-      color: theme.textPrimary,
-      fontWeight: '700',
+      fontFamily: 'Bold',
+      color: darkenColor(theme.textPrimary, 5),
+      // fontWeight: '700',
     },
     closeButton: {
       width: 36,

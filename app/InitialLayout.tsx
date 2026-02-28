@@ -12,8 +12,9 @@ export default function InitialLayout() {
   const lastStateKey = useRef<string>('');
 
   useEffect(() => {
-    // Wait for auth to be initialized
-    if (!isInitialized || status === 'loading') {
+    // Wait for auth to be initialized (e.g. restoreSession). Do NOT wait for status !== 'loading'
+    // so that when user taps Sign In, we keep showing the login screen and it can show its own loading modal.
+    if (!isInitialized) {
       return;
     }
 
@@ -81,8 +82,11 @@ export default function InitialLayout() {
     }
   }, [user, status, onboardingCompleted, isInitialized, router, segments, pathname]);
 
-  // Show loading screen while initializing
-  if (!isInitialized || status === 'loading') {
+  // Show loading only while auth is initializing (e.g. restoreSession). When user taps Sign In,
+  // status becomes 'loading' but we must keep rendering the Stack so the login screen stays
+  // mounted (and can show its own "Signing in..." modal). Otherwise the login screen unmounts
+  // and input fields clear.
+  if (!isInitialized) {
     return (
       <View style={styles.loadingContainer}>
         <Image source={require('@/assets/images/icon.png')} style={{ width: 100, height: 100 }} />

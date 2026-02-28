@@ -1,22 +1,24 @@
 import { useWindowDimensions } from 'react-native';
-
 import { useCallback } from 'react';
-
 import Animated, {
   useAnimatedScrollHandler,
   useSharedValue,
 } from 'react-native-reanimated';
-
 import { CarouselItem } from './carousel-item';
+import type { CoverFlowCardItem } from './types';
 
-type CoverFlowCarouselProps = {
-  images: string[];
+export type { CoverFlowCardItem } from './types';
+
+const ITEM_WIDTH = 300;
+const ITEM_HEIGHT = 260;
+
+export type CoverFlowCarouselProps = {
+  /** Items to show. Each can have image, gradient, text, icon — same card size, different content. */
+  items: CoverFlowCardItem[];
 };
 
-const ItemWidth = 300;
-
 export const CoverFlowCarousel: React.FC<CoverFlowCarouselProps> = ({
-  images,
+  items,
 }) => {
   const scrollOffset = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler({
@@ -26,28 +28,28 @@ export const CoverFlowCarousel: React.FC<CoverFlowCarouselProps> = ({
   });
 
   const { width: windowWidth } = useWindowDimensions();
-
-  const paddingHorizontal = Math.round((windowWidth - ItemWidth) / 2);
+  const paddingHorizontal = Math.round((windowWidth - ITEM_WIDTH) / 4);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: string; index: number }) => (
+    ({ item, index }: { item: CoverFlowCardItem; index: number }) => (
       <CarouselItem
-        image={item}
+        item={item}
         index={index}
         scrollOffset={scrollOffset}
-        itemWidth={ItemWidth}
+        itemWidth={ITEM_WIDTH}
+        itemHeight={ITEM_HEIGHT}
       />
     ),
-    [scrollOffset],
+    [scrollOffset]
   );
 
   return (
     <Animated.FlatList
-      scrollEventThrottle={16}
+      scrollEventThrottle={4}
       horizontal
       pagingEnabled
-      snapToInterval={ItemWidth}
-      decelerationRate={'fast'}
+      snapToInterval={ITEM_WIDTH}
+      decelerationRate="fast"
       showsHorizontalScrollIndicator={false}
       onScroll={onScroll}
       contentContainerStyle={{
@@ -55,7 +57,8 @@ export const CoverFlowCarousel: React.FC<CoverFlowCarouselProps> = ({
         paddingHorizontal,
       }}
       renderItem={renderItem}
-      data={images}
+      data={items}
+      keyExtractor={(i) => i.id}
     />
   );
 };

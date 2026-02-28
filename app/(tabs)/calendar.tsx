@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Calendar, DateData } from 'react-native-calendars';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/src/store';
@@ -8,12 +9,14 @@ import {
   calculatePredictions,
   CycleEntry,
   deleteEntry,
+  loadCycleData,
   updateEntry,
   addQuickNote,
   updateQuickNote,
   deleteQuickNote,
   QuickNote,
 } from '@/src/store/slices/cycleSlice';
+import { cycleEntryService } from '@/services/cycleEntryService';
 import { phaseRecommendations } from '@/data/phaseRecommendation';
 import AppText from '@/components/core-components/AppText';
 import QuickNoteModal from '@/components/core-components/QuickNoteModal';
@@ -78,6 +81,37 @@ function calculatePhaseForDate(
   return 'luteal';
 }
 
+/** Get cycle day (1-based) for a date for display in modal */
+function getCycleDayForDate(
+  dateISO: string,
+  profile: RootState['cycle']['profile'],
+  entries: CycleEntry[]
+): number | null {
+  const lastPeriod = profile.lastPeriodStart ||
+    entries
+      .filter(e => e.isPeriod)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
+  if (!lastPeriod) return null;
+  const lastPeriodDate = new Date(lastPeriod);
+  const targetDate = new Date(dateISO);
+  const daysSince = Math.floor((targetDate.getTime() - lastPeriodDate.getTime()) / (1000 * 60 * 60 * 24));
+  let cycleDay = daysSince + 1;
+  if (cycleDay <= 0) {
+    cycleDay = ((cycleDay % profile.averageCycleLength) + profile.averageCycleLength) % profile.averageCycleLength + 1;
+  }
+  if (cycleDay > profile.averageCycleLength) {
+    cycleDay = ((cycleDay - 1) % profile.averageCycleLength) + 1;
+  }
+  return cycleDay;
+}
+
+function formatPredictionDate(d: string | undefined): string {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function CalendarScreen() {
   const dispatch = useDispatch();
   const { theme, accentColor, themeName } = useTheme();
@@ -90,6 +124,26 @@ export default function CalendarScreen() {
   const [editingQuickNote, setEditingQuickNote] = useState<QuickNote | null>(null);
   const [showSymptomTrackerModal, setShowSymptomTrackerModal] = useState(false);
   const [showLegendModal, setShowLegendModal] = useState(false);
+
+  // Fetch cycle entries from backend when calendar is opened/focused so period log shows up-to-date data
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const fetchCycleEntries = async () => {
+        try {
+          const entries = await cycleEntryService.getCycleEntries();
+          if (!cancelled) {
+            dispatch(loadCycleData({ entries }));
+            if (entries.length > 0) dispatch(calculatePredictions());
+          }
+        } catch (error) {
+          if (!cancelled) console.error('[Calendar] Error fetching cycle entries:', error);
+        }
+      };
+      fetchCycleEntries();
+      return () => { cancelled = true; };
+    }, [dispatch])
+  );
 
   const entriesMap = useMemo(() => {
     return cycleState.entries.reduce<Record<string, CycleEntry>>((acc, entry) => {
@@ -128,6 +182,25 @@ export default function CalendarScreen() {
   }, [todayEntry]);
 
   const selectedEntry = selectedDate ? entriesMap[selectedDate] : undefined;
+
+  // Day prediction data for the selected date (phase, cycle day, next period/ovulation)
+  const dayPrediction = useMemo(() => {
+    if (!selectedDate) return null;
+    const phase = calculatePhaseForDate(selectedDate, cycleState.profile, cycleState.entries);
+    const phaseData = phaseRecommendations[phase];
+    const cycleDay = getCycleDayForDate(selectedDate, cycleState.profile, cycleState.entries);
+    const nextPeriod = cycleState.predictions?.nextPeriod as { date?: string } | null;
+    const ovulation = cycleState.predictions?.ovulation as { date?: string } | null;
+    const fertileWindow = cycleState.predictions?.fertileWindow;
+    return {
+      phaseName: phaseData?.name ?? phase,
+      phaseDescription: phaseData?.description ?? '',
+      phaseColor: phaseData?.color ?? '#8b5cf6',
+      cycleDay,
+      nextPeriodLabel: formatPredictionDate(nextPeriod?.date),
+      ovulationLabel: formatPredictionDate(ovulation?.date) || (fertileWindow ? formatPredictionDate(fertileWindow.peak) : ''),
+    };
+  }, [selectedDate, cycleState.profile, cycleState.entries, cycleState.predictions]);
 
   // Removed symptom draft useEffect - now handled in SymptomTrackerModal
 
@@ -775,6 +848,7 @@ export default function CalendarScreen() {
         selectedDate={selectedDate}
         entry={selectedEntry}
         quickNotes={quickNotesForDate}
+        dayPrediction={dayPrediction}
         onLogPeriod={handleLogPeriodSingle}
         onUnmarkPeriod={handleUnmarkPeriod}
         onOpenSymptomTracker={handleOpenSymptomTracker}

@@ -18,6 +18,33 @@ export interface CycleEntryApiResponse {
 }
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/** Normalize backend date (ISO datetime or YYYY-MM-DD) to YYYY-MM-DD for calendar matching */
+function normalizeEntryDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (isNaN(d.getTime())) return trimmed;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function mapEntry(entry: any): CycleEntry {
+  return {
+    date: normalizeEntryDate(entry.date),
+    isPeriod: Boolean(entry.isPeriod === true || entry.isPeriod === 'true'),
+    flowIntensity: entry.flowIntensity,
+    symptoms: entry.symptoms,
+    notes: entry.notes,
+  };
+}
+
+// ============================================================================
 // API METHODS
 // ============================================================================
 
@@ -31,25 +58,13 @@ export const cycleEntryService = {
       
       // Handle both response formats
       if (Array.isArray(response.data)) {
-        return response.data.map(entry => ({
-          date: entry.date,
-          isPeriod: entry.isPeriod,
-          flowIntensity: entry.flowIntensity,
-          symptoms: entry.symptoms,
-          notes: entry.notes,
-        }));
+        return response.data.map(mapEntry).filter(e => e.date);
       }
       
       if ((response.data as CycleEntryApiResponse)?.success && (response.data as CycleEntryApiResponse).data) {
         const data = (response.data as CycleEntryApiResponse).data;
         const entries = Array.isArray(data) ? data : [data];
-        return entries.map(entry => ({
-          date: entry.date,
-          isPeriod: entry.isPeriod,
-          flowIntensity: entry.flowIntensity,
-          symptoms: entry.symptoms,
-          notes: entry.notes,
-        }));
+        return entries.map(mapEntry).filter(e => e.date);
       }
       
       return [];

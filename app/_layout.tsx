@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native'; // <-- Import View and StyleSheet
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { WorkoutProvider } from '@/contexts/WorkoutContext';
 import { AppProvider } from '../src/context/AppContext';
 import { ReduxProvider } from '@/contexts/ReduxProvider';
 import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
@@ -46,12 +45,10 @@ function RootLayoutInner() {
   return (
     <View style={styles.root}>
       <ReduxProvider>
-        <WorkoutProvider>
-          <AppProvider>
-            <InitialLayout />
-            <StatusBar style={statusBarStyle} backgroundColor="#FFF0F8" />
-          </AppProvider>
-        </WorkoutProvider>
+        <AppProvider>
+          <InitialLayout />
+          <StatusBar style={statusBarStyle} backgroundColor="#FFF0F8" />
+        </AppProvider>
       </ReduxProvider>
     </View>
   );

@@ -16,7 +16,8 @@ import Logo from '@/assets/images/logo';
 import PhaseDetailModal from '@/components/PhaseDetailModal';
 import QuickAction from '@/components/QuickAction';
 import { useTheme } from '@/src/context/ThemeContext';
-import { CoverFlowCarousel } from '@/components/animeted/coverflow-card';
+import { CoverFlowCarousel, type CoverFlowCardItem } from '@/components/animeted/coverflow-card';
+import SmokeLayer from '@/components/animeted/SmokeLayer';
 
 export default function HomeScreen() {
   const { cycleState, dispatch } = useCycleRedux();
@@ -61,18 +62,57 @@ export default function HomeScreen() {
     return diff;
   };
 
-  const Images = [
-'https://img.freepik.com/premium-photo/person-is-writing-calendar-with-pencil-it_1115474-165049.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80', 
-'https://img.freepik.com/premium-photo/portrait-outdoor-woman-with-fitness-arms-crossed-smile-with-wellness-energy-workout-face-person-athlete-with-confidence-forest-training-with-happiness-health-exercise_590464-237328.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
-'https://img.freepik.com/premium-photo/calendar-with-date-april-date-may_1115474-165600.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
-'https://img.freepik.com/free-photo/woman-showing-her-muscle_23-2148666475.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
-'https://img.freepik.com/premium-photo/menstrual-cycle-mobile-app-smartphone-screen-pink-background-top-view_101969-2912.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
-'https://img.freepik.com/free-photo/athletic-woman-practicing-sport-outdoor_23-2148196801.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80'
-  ];
-  
+  const coverFlowItems: CoverFlowCardItem[] = useMemo(
+    () => [
+      {
+        id: '1',
+        image:
+          'https://img.freepik.com/free-photo/woman-being-upset-holding-period-calendar_23-2148381547.jpg?ga=GA1.1.1022337787.1763629627&semt=ais_hybrid&w=740&q=80',
+        title: 'Track your cycle',
+        subtitle: 'Stay on top of dates',
+
+
+      },
+      {
+        id: '2',
+        gradientColors: ['#ec4899', '#be185d'],
+        icon: <Zap size={44} color="#fff" strokeWidth={2} />,
+        title: 'Energy',
+        subtitle: 'Peak days',
+      },
+      {
+        id: '3',
+        image:
+          'https://img.freepik.com/premium-photo/calendar-with-date-april-date-may_1115474-165600.jpg?w=740&q=80',
+        title: 'Plan ahead',
+      },
+      {
+        id: '4',
+        gradientColors: ['#8b5cf6', '#5b21b6'],
+        title: 'Follicular phase',
+        subtitle: 'Rising energy',
+      },
+      {
+        id: '5',
+        gradientColors: ['#06b6d4', '#0e7490'],
+        icon: <Zap size={40} color="#fff" />,
+        title: 'Focus time',
+      },
+      {
+        id: '6',
+        image:
+          'https://img.freepik.com/free-photo/athletic-woman-practicing-sport-outdoor_23-2148196801.jpg?w=740&q=80',
+        title: 'Move your body',
+        subtitle: 'Any phase',
+      },
+    ],
+    []
+  );
+
 
   return (
     <>
+
       <LinearGradient
         colors={gradientColors}
         style={dynamicStyles.gradientContainer}
@@ -92,15 +132,15 @@ export default function HomeScreen() {
               style={[dynamicStyles.menuButton,]}
               activeOpacity={0.7}
             >
-              <PanelRightClose size={20} strokeWidth={2} color={theme.textPrimary} />
+              <PanelRightClose size={20} strokeWidth={2} color={theme.cardBackground} />
             </TouchableOpacity>
             <View style={dynamicStyles.logoContainer}>
               <Logo color={phaseColor} width={210} height={80} />
             </View>
             <TouchableOpacity
-              onPress={() => 
-                // setThemeName(themeName === 'light' ? 'dark' : 'light')
-                {}
+              onPress={() =>
+                setThemeName(themeName === 'light' ? 'dark' : 'light')
+                // { }
               }
               style={dynamicStyles.themeToggleButton}
               activeOpacity={0.7}
@@ -133,58 +173,29 @@ export default function HomeScreen() {
           <QuickAction />
 
           {/* Hormone Chart */}
+
+
+
+
           <View style={dynamicStyles.hormoneChartContainer}>
+            {/* Option A: Keep the same engine, but use real cycle data (easiest)
+            Goal: Same estimated curves, but driven by real period/cycle data instead of generateMockCycles().
+
+            Option B: Add real lab/clinical hormone results
+            Goal: Show actual hormone levels (from blood/saliva tests) when the user has them */}
+
             <HormoneChartScreen />
-          </View>
-
-          <View style={{height: 280, alignContent: 'center', justifyContent: 'center', marginBottom: 200, backgroundColor: theme.background}}>
-            <CoverFlowCarousel images={Images} />
-          </View>
-
-          {/* Today'sv  Recommendations */}
-          {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Recommendations</Text>
-          <View style={styles.recommendationsBlock}>
-            <View style={styles.recommendationItem}>
-              <Text style={styles.recommendationEmoji}>{currentPhaseData.foods.icon}</Text>
-              <View style={styles.recommendationContent}>
-                <Text style={styles.recommendationTitle}>{currentPhaseData.foods.title}</Text>
-                <Text style={styles.recommendationText}>
-                  {currentPhaseData.foods.items[0]}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.recommendationItem}>
-              <Text style={styles.recommendationEmoji}>{currentPhaseData.exercises.icon}</Text>
-              <View style={styles.recommendationContent}>
-                <Text style={styles.recommendationTitle}>
-                  {currentPhaseData.exercises.title}
-                </Text>
-                <Text style={styles.recommendationText}>
-                  {currentPhaseData.exercises.items[0]}
-                </Text>
-              </View>
+            <View style={{ height: 260, alignContent: 'center', justifyContent: 'center', backgroundColor: theme.background, }}>
+              <CoverFlowCarousel items={coverFlowItems} />
             </View>
           </View>
-        </View> */}
 
-          {/* Today's Tips */}
-          {/* <View style={[styles.section, { marginBottom: 100 }]}>
-          <Text style={styles.sectionTitle}>Phase Tips</Text>
-          <View style={styles.tipsCard}>
-            <Zap size={20} color="#eab308" />
-            <View style={styles.tipsContent}>
-              {currentPhaseData.tips.slice(0, 2).map((tip, index) => (
-                <Text key={index} style={styles.tipText}>
-                  💡 {tip}
-                </Text>
-              ))}
-            </View>
-          </View>
-        </View> */}
+
+
+
         </ScrollView>
       </LinearGradient>
+
 
       {/* Phase Detail Modal */}
       <PhaseDetailModal
@@ -211,7 +222,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   headerContainer: {
     paddingTop: 40,
     paddingHorizontal: 8,
-    paddingBottom: 8,
+    // paddingBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -254,45 +265,5 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontFamily: 'Bold',
     marginBottom: 12,
   },
-  recommendationsBlock: {
-    padding: 20,
-    borderRadius: 16,
-    gap: 16,
-  },
-  recommendationItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12
-  },
-  recommendationEmoji: {
-    fontSize: 24
-  },
-  recommendationContent: {
-    flex: 1
-  },
-  recommendationTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  recommendationText: {
-    fontSize: 14,
-    lineHeight: 20
-  },
-  tipsCard: {
-    padding: 20,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    borderLeftWidth: 4,
-  },
-  tipsContent: {
-    flex: 1,
-    gap: 8
-  },
-  tipText: {
-    fontSize: 14,
-    lineHeight: 20
-  },
+ 
 });

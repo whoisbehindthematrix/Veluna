@@ -37,8 +37,9 @@ export default function WeekPhaseStrip({
   const cycle = useSelector((s: RootState) => s.cycle);
   const { theme, accentColor } = useTheme();
 
-  // State for calendar width and current date
-  const [calendarWidth, setCalendarWidth] = useState<number>();
+  // State for calendar width and current date (use Dimensions fallback so dates render on first paint)
+  const { width: screenWidth } = Dimensions.get('window');
+  const [calendarWidth, setCalendarWidth] = useState<number>(() => Math.max(280, screenWidth - 48));
   const [currentDate, setCurrentDate] = useState(toISO(new Date()));
   const [tooltipDate, setTooltipDate] = useState<string | null>(null);
   const monthYear = useMemo(() => {
@@ -233,6 +234,7 @@ export default function WeekPhaseStrip({
           container: containerStyle,
           text: {
             color: textColor,
+            fontSize: 14,
             fontWeight: isToday ? '800' : '700',
           },
           // Dot element rendered by WeekCalendar’s custom style prop
@@ -250,12 +252,14 @@ export default function WeekPhaseStrip({
     setCurrentDate(date);
   }, []);
 
-  // Create calendar theme with theme colors
+  // Create calendar theme with theme colors (dayTextColor critical for date numbers to show)
   const calendarTheme = useMemo(() => ({
     calendarBackground: 'transparent',
     textSectionTitleColor: theme.textSecondary,
+    dayTextColor: theme.textPrimary, // Required: ensures date numbers are visible
     arrowColor: theme.textPrimary,
     todayTextColor: theme.textPrimary,
+    textDayFontSize: 14,
     textDayFontWeight: '700' as const,
     textMonthFontWeight: '800' as const,
     textDayHeaderFontWeight: '700' as const,

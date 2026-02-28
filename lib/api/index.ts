@@ -149,6 +149,7 @@ api.interceptors.response.use(
       '/auth/signin',
       '/auth/signout',
       '/auth/logout',
+      '/auth/google',
       '/auth/password',
       '/auth/reset-password',
       '/auth/forgot-password',

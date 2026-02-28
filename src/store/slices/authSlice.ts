@@ -115,7 +115,7 @@ export const signInWithEmail = createAsyncThunk(
 
 export const signInWithGoogle = createAsyncThunk(
   'auth/signInWithGoogle',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     try {
       const redirectTo = Linking.createURL('auth-callback');
 
@@ -148,12 +148,32 @@ export const signInWithGoogle = createAsyncThunk(
         sessionData.session.refresh_token!
       );
 
+      // Sync user with backend (verify Supabase JWT, upsert user, same shape as login)
+      const res = await api.post('/auth/google', {
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token ?? undefined,
+      });
+
+      // Update userProfile if backend returns profile (same as signUpWithEmail)
+      if (res.data?.user?.profile) {
+        const profileData = res.data.user.profile;
+        const mappedProfile = {
+          ...profileData,
+          displayName: profileData.fullName || profileData.displayName,
+          firstName: profileData.firstName || profileData.fullName?.split(' ')[0] || '',
+          lastName: profileData.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || '',
+        };
+        dispatch(setProfile(mappedProfile as any));
+      }
+
       return {
-        user: sessionData.session.user,
-        session: sessionData.session,
+        user: res.data?.user ?? null,
+        session: res.data?.session ?? null,
       };
     } catch (e: any) {
-      return rejectWithValue(e.message || 'Google sign-in failed');
+      return rejectWithValue(
+        e.response?.data?.message || e.message || 'Google sign-in failed'
+      );
     }
   }
 );
@@ -338,6 +358,24 @@ const authSlice = createSlice({
         s.onboardingCompleted = payload?.user?.onboardingCompleted ?? false;
       })
       .addCase(signUpWithEmail.rejected, (s, action) => {
+        s.status = 'failed';
+        s.error = action.payload as string;
+      })
+
+      // Sign In with Google
+      .addCase(signInWithGoogle.pending, (s) => {
+        s.status = 'loading';
+        s.error = null;
+      })
+      .addCase(signInWithGoogle.fulfilled, (s, action) => {
+        s.status = 'succeeded';
+        const payload = action.payload as any;
+        s.user = payload?.user ?? null;
+        s.accessToken = payload?.session?.access_token ?? null;
+        s.refreshTokenStored = !!payload?.session?.refresh_token;
+        s.onboardingCompleted = payload?.user?.onboardingCompleted ?? false;
+      })
+      .addCase(signInWithGoogle.rejected, (s, action) => {
         s.status = 'failed';
         s.error = action.payload as string;
       })

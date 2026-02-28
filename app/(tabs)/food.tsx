@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,27 +10,62 @@ import {
   Image,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { commonFoods, weeklyMealPlans, FoodItem } from '@/data/foodData';
-import { Camera, Plus, Calendar, Target, TrendingUp } from 'lucide-react-native';
+import { Camera, Plus, Calendar, Target, TrendingUp, Trash2 } from 'lucide-react-native';
 import { AIInsights } from '@/components/AIInsights';
 import CircularProgress from 'react-native-circular-progress-indicator';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useCycleStore } from '@/hooks/useCycleStore';
 import FoodScanModal, { ScanResult } from '@/components/food/FoodScanModal';
 import { AddFoodModal } from '@/components/food/AddFoodModal';
+import MealPlanModal from '@/components/food/MealPlanModal';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/src/store';
-import { fetchGlobalFoods } from '@/src/store/slices/foodSlice';
+import {
+  fetchGlobalFoods,
+  getFoodLogs,
+  createScannedFood,
+  createFoodLog,
+  deleteFoodLog,
+  clearFoodErrors,
+  type FoodLogItem,
+} from '@/src/store/slices/foodSlice';
 import NeuPressable from '@/components/core-components/NeuPressable';
 import { addOpacityToHex } from '@/src/utils';
+
+/** Derive display name and macros from a food log entry (global or scanned). */
+function getLogEntryDisplay(log: FoodLogItem) {
+  const food = log.globalFood || log.scannedFood;
+  const name = food
+    ? ('name' in food ? food.name : food.foodName)
+    : 'Unknown';
+  const q = log.quantity;
+  const calories = food ? Math.round(food.calories * q) : 0;
+  const protein = food ? Math.round(food.proteinGrams * q) : 0;
+  const carbs = food ? Math.round(food.carbsGrams * q) : 0;
+  const fat = food ? Math.round(food.fatGrams * q) : 0;
+  const note = log.scannedFood?.notes ?? null;
+  return { name: log.quantity > 1 ? `${name} (${log.quantity}x)` : name, calories, protein, carbs, fat, note };
+}
 
 export default function FoodScreen() {
   const { cycle, addFoodEntry } = useCycleStore();
   const { theme, accentColor } = useTheme();
   const dispatch = useDispatch<AppDispatch>();
-  const { globalFoods, loadingGlobal } = useSelector((state: RootState) => state.food);
+  const {
+    globalFoods,
+    loadingGlobal,
+    foodLogs,
+    foodLogTotals,
+    selectedLogDate,
+    loadingLogs,
+    logsError,
+    actionLoading,
+    actionError,
+  } = useSelector((state: RootState) => state.food);
 
   const { width, height } = Dimensions.get('window');
   const dynamicStyles = useMemo(() => createStyles(theme, accentColor, width, height), [theme, accentColor, width, height]);
@@ -41,6 +76,8 @@ export default function FoodScreen() {
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
   const [showAiInsights, setShowAiInsights] = useState(false);
 
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+
   // Load global foods once
   useEffect(() => {
     if (!globalFoods || globalFoods.length === 0) {
@@ -48,102 +85,115 @@ export default function FoodScreen() {
     }
   }, [dispatch, globalFoods]);
 
-  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const todaysFoodEntries = useMemo(
-    () => cycle.foodEntries.filter((entry) => entry.date === today),
-    [cycle.foodEntries, today]
-  );
-  const todaysCalories = useMemo(
-    () => todaysFoodEntries.reduce((sum, entry) => sum + entry.calories, 0),
-    [todaysFoodEntries]
-  );
+  // Load food log for today on mount and when date is today
+  useEffect(() => {
+    dispatch(getFoodLogs(today));
+  }, [dispatch, today]);
 
+  const todaysCalories = useMemo(
+    () => foodLogTotals?.totalCalories ?? 0,
+    [foodLogTotals]
+  );
   const calorieGoal =
-    (cycle.profile as any)?.dailyCalorieGoal ??
-    2000;
+    (cycle.profile as any)?.dailyCalorieGoal ?? 2000;
   const remainingCalories = calorieGoal - todaysCalories;
 
   const currentPhasePlan = weeklyMealPlans.find(
     (plan) => plan.phase === cycle.currentPhase.name
   );
 
-  // Map global foods from backend into FoodItem shape for UI
+  // Map global foods from backend into FoodItem shape for UI (include id for API)
   const globalFoodItems: FoodItem[] = useMemo(
     () =>
       (globalFoods || []).map((food) => ({
+        id: food.id,
         name: food.name,
         calories: food.calories,
         protein: food.proteinGrams,
         carbs: food.carbsGrams,
         fat: food.fatGrams,
-        // Fallback category to keep UI stable
         category: (food.category || 'SNACK').toLowerCase(),
         imageUrl: food.imageUrl,
       })),
     [globalFoods],
   );
 
-  // Prefer global foods from backend; fallback to static commonFoods
+  // Prefer global foods from backend; fallback to static commonFoods (no id = local only)
   const allFoods: FoodItem[] = useMemo(
     () => (globalFoodItems.length > 0 ? globalFoodItems : commonFoods),
     [globalFoodItems],
   );
 
-  const handleScanAdd = ({ analysis, name, note }: { analysis: ScanResult; name: string; note?: string }) => {
-    addFoodEntry({
-      id: Date.now().toString(),
-      date: today,
-      name,
-      calories: Math.round(analysis.calories || 0),
-      protein: 0,
-      carbs: 0,
-      fat: 0,
-      mealType,
-      note,
-    });
+  const handleScanAdd = useCallback(
+    async ({ analysis, name, note }: { analysis: ScanResult; name: string; note?: string }) => {
+      try {
+        const scanned = await dispatch(
+          createScannedFood({
+            foodName: name.trim() || analysis.foodName || 'Scanned meal',
+            calories: Math.round(analysis.calories ?? 0),
+            proteinGrams: analysis.protein ?? 0,
+            fatGrams: analysis.fat ?? 0,
+            carbsGrams: analysis.carbs ?? 0,
+            notes: note?.trim() || null,
+          })
+        ).unwrap();
+        await dispatch(
+          createFoodLog({ date: today, scannedFoodId: scanned.id, quantity: 1 })
+        ).unwrap();
+        setShowScanModal(false);
+        Alert.alert('Added', `${name}\n${Math.round(analysis.calories ?? 0)} cal`);
+      } catch (err: any) {
+        Alert.alert('Error', err?.message ?? 'Failed to add from scan');
+      }
+    },
+    [dispatch, today]
+  );
 
-    Alert.alert(
-      'Added from scan',
-      `${name}\n${Math.round(analysis.calories || 0)} cal`
-    );
-  };
+  const handleAddFoodFromGlobal = useCallback(
+    (
+      {
+        food,
+        quantity,
+        mealType: _mt,
+      }: {
+        food: FoodItem;
+        quantity: number;
+        mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+      }
+    ) => {
+      if (food.id) {
+        dispatch(createFoodLog({ date: today, globalFoodId: food.id, quantity }))
+          .unwrap()
+          .then(() => setShowAddModal(false))
+          .catch((err: any) => Alert.alert('Error', err?.message ?? 'Failed to add to log'));
+      } else {
+        addFoodEntry({
+          id: Date.now().toString(),
+          date: today,
+          name: `${food.name} (${quantity}x)`,
+          calories: Math.round((food.calories || 0) * quantity),
+          protein: Math.round((food.protein || 0) * quantity),
+          carbs: Math.round((food.carbs || 0) * quantity),
+          fat: Math.round((food.fat || 0) * quantity),
+          mealType: _mt,
+        });
+        setShowAddModal(false);
+      }
+    },
+    [dispatch, today, addFoodEntry]
+  );
 
-  // 🥗 Add from global list handler
-  const handleAddFoodFromGlobal = ({
-    food,
-    quantity,
-    mealType: mt,
-  }: {
-    food: FoodItem;
-    quantity: number;
-    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  }) => {
-    addFoodEntry({
-      id: Date.now().toString(),
-      date: today,
-      name: `${food.name} (${quantity}x)`,
-      calories: Math.round((food.calories || 0) * quantity),
-      protein: Math.round((food.protein || 0) * quantity),
-      carbs: Math.round((food.carbs || 0) * quantity),
-      fat: Math.round((food.fat || 0) * quantity),
-      mealType: mt,
-    });
+  const handleDeleteLog = useCallback(
+    (logId: string) => {
+      Alert.alert('Remove', 'Remove this item from your log?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => dispatch(deleteFoodLog(logId)) },
+      ]);
+    },
+    [dispatch]
+  );
 
-    setShowAddModal(false);
-  };
-
-  const getMealTypeEntries = (type: string) =>
-    todaysFoodEntries.filter((entry) => entry.mealType === type);
-
-  const getMealTypeCalories = (type: string) =>
-    getMealTypeEntries(type).reduce((sum, entry) => sum + entry.calories, 0);
-
-  const mealTypes = [
-    { key: 'breakfast', name: 'Breakfast', icon: '🌅', color: '#fbbf24' },
-    { key: 'lunch', name: 'Lunch', icon: '☀️', color: '#f97316' },
-    { key: 'dinner', name: 'Dinner', icon: '🌙', color: '#8b5cf6' },
-    { key: 'snack', name: 'Snacks', icon: '🍎', color: '#10b981' },
-  ];
+  const isShowingToday = selectedLogDate === today;
 
   return (
     <ScrollView style={[dynamicStyles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
@@ -242,9 +292,9 @@ export default function FoodScreen() {
         <View style={dynamicStyles.quickActions}>
           <NeuPressable
             borderRadius={20}
-            backgroundColor="#fff"
+            backgroundColor={theme.cardBackground}
             shadowColor={addOpacityToHex(accentColor, 0.1)}
-            onPress={() => setShowScanModal(true)}
+            onPress={() => { dispatch(clearFoodErrors()); setShowScanModal(true); }}
           >
             <View
               style={[dynamicStyles.quickActionButton, {
@@ -261,9 +311,9 @@ export default function FoodScreen() {
 
           <NeuPressable
             borderRadius={20}
-            backgroundColor="#fff"
+            backgroundColor={theme.cardBackground}
             shadowColor={addOpacityToHex(accentColor, 0.1)}
-            onPress={() => setShowAddModal(true)}
+            onPress={() => { dispatch(clearFoodErrors()); setShowAddModal(true); }}
           >
             <View
               style={[dynamicStyles.quickActionButton, {
@@ -280,7 +330,7 @@ export default function FoodScreen() {
 
           <NeuPressable
             borderRadius={20}
-            backgroundColor="#fff"
+            backgroundColor={theme.cardBackground}
             shadowColor={addOpacityToHex(accentColor, 0.1)}
             onPress={() => setShowMealPlanModal(true)}
           >
@@ -299,7 +349,7 @@ export default function FoodScreen() {
 
           <NeuPressable
             borderRadius={20}
-            backgroundColor="#fff"
+            backgroundColor={theme.cardBackground}
             shadowColor={addOpacityToHex(accentColor, 0.1)}
             onPress={() => setShowAiInsights(true)}
           >
@@ -316,44 +366,36 @@ export default function FoodScreen() {
         </View>
       </View>
 
-      {/* Today's Food Log */}
+      {/* Today's Food Log (backend) */}
       <View style={dynamicStyles.section}>
         <Text style={[dynamicStyles.sectionTitle, { color: theme.textPrimary }]}>Today's Meals</Text>
-        {todaysFoodEntries.length === 0 && (
+        {actionError && (
+          <Text style={{ color: '#ef4444', fontSize: 14, marginBottom: 8 }}>{actionError}</Text>
+        )}
+        {loadingLogs ? (
+          <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={accentColor} />
+            <Text style={{ color: theme.textSecondary, marginTop: 8 }}>Loading food log...</Text>
+          </View>
+        ) : logsError ? (
+          <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{logsError}</Text>
+        ) : !isShowingToday || foodLogs.length === 0 ? (
           <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
             No food logged yet. Scan a meal or add food to get started.
           </Text>
-        )}
-
-        {mealTypes.map((meal) => {
-          const entries = getMealTypeEntries(meal.key);
-          if (!entries.length) return null;
-
-          const totalCalories = getMealTypeCalories(meal.key);
-
-          return (
-            <View
-              key={meal.key}
-              style={[
-                dynamicStyles.mealLogSection,
-                { backgroundColor: theme.cardBackground, borderColor: `${accentColor}20` },
-              ]}
-            >
-              <View style={dynamicStyles.mealLogHeader}>
-                <View style={dynamicStyles.mealLogTitleRow}>
-                  <Text style={dynamicStyles.mealLogEmoji}>{meal.icon}</Text>
-                  <Text style={[dynamicStyles.mealLogTitle, { color: theme.textPrimary }]}>
-                    {meal.name}
-                  </Text>
-                </View>
-                <Text style={[dynamicStyles.mealLogCalories, { color: accentColor }]}>
-                  {totalCalories} kcal
-                </Text>
-              </View>
-
-              {entries.map((entry) => (
+        ) : (
+          <View style={[dynamicStyles.mealLogSection, { backgroundColor: theme.cardBackground, borderColor: `${accentColor}20` }]}>
+            <View style={dynamicStyles.mealLogHeader}>
+              <Text style={[dynamicStyles.mealLogTitle, { color: theme.textPrimary }]}>All meals</Text>
+              <Text style={[dynamicStyles.mealLogCalories, { color: accentColor }]}>
+                {todaysCalories} kcal
+              </Text>
+            </View>
+            {foodLogs.map((log) => {
+              const display = getLogEntryDisplay(log);
+              return (
                 <View
-                  key={entry.id}
+                  key={log.id}
                   style={[
                     dynamicStyles.mealEntryCard,
                     { backgroundColor: `${accentColor}08`, borderColor: `${accentColor}25` },
@@ -361,35 +403,44 @@ export default function FoodScreen() {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[dynamicStyles.mealEntryTitle, { color: theme.textPrimary }]}>
-                      {entry.name}
+                      {display.name}
                     </Text>
-                    {!!entry.note && (
+                    {!!display.note && (
                       <Text
                         style={[dynamicStyles.mealEntryNote, { color: theme.textSecondary }]}
                         numberOfLines={2}
                       >
-                        {entry.note}
+                        {display.note}
                       </Text>
                     )}
                   </View>
-                  <View style={dynamicStyles.mealEntryMeta}>
+                  <View style={[dynamicStyles.mealEntryMeta, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
                     <Text style={[dynamicStyles.mealEntryCalories, { color: theme.textPrimary }]}>
-                      {entry.calories} kcal
+                      {display.calories} kcal
                     </Text>
-                    {(entry.protein || entry.carbs || entry.fat) && (
+                    {(display.protein || display.carbs || display.fat) ? (
                       <Text
                         style={[dynamicStyles.mealEntryMacros, { color: theme.textSecondary }]}
                         numberOfLines={1}
                       >
-                        P {entry.protein || 0} • C {entry.carbs || 0} • F {entry.fat || 0}
+                        P {display.protein} • C {display.carbs} • F {display.fat}
                       </Text>
+                    ) : null}
+                    {actionLoading ? null : (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteLog(log.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{ padding: 4 }}
+                      >
+                        <Trash2 size={18} color="#ef4444" />
+                      </TouchableOpacity>
                     )}
                   </View>
                 </View>
-              ))}
-            </View>
-          );
-        })}
+              );
+            })}
+          </View>
+        )}
       </View>
 
       <FoodScanModal
@@ -409,6 +460,15 @@ export default function FoodScreen() {
         onMealTypeChange={setMealType as any}
         loadingGlobal={loadingGlobal}
         onConfirmAdd={handleAddFoodFromGlobal}
+      />
+
+      {/* Meal Plan Modal */}
+      <MealPlanModal
+        visible={showMealPlanModal}
+        onClose={() => setShowMealPlanModal(false)}
+        onMealAdded={() => {
+          dispatch(getFoodLogs(today));
+        }}
       />
 
       {/* AI Insights */}

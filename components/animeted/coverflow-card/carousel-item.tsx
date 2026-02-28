@@ -1,75 +1,57 @@
-import { Image, StyleSheet } from 'react-native';
-
+import {
+  Image,
+  StyleSheet,
+  View,
+  Text,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Extrapolation,
   interpolate,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-
 import type { SharedValue } from 'react-native-reanimated';
+import type { CoverFlowCardItem } from './types';
+
+const DEFAULT_CARD_BG = '#2a2a2a';
 
 type CarouselItemProps = {
-  image: string;
+  item: CoverFlowCardItem;
   index: number;
   scrollOffset: SharedValue<number>;
   itemWidth: number;
+  itemHeight: number;
 };
 
 export const CarouselItem: React.FC<CarouselItemProps> = ({
-  image,
+  item,
   scrollOffset,
   index,
   itemWidth,
+  itemHeight,
 }) => {
-  // Define the range of input values for interpolation based on item index and width
   const inputRange = [
-    (index - 3) * itemWidth, // Three items before the current item
-    (index - 2) * itemWidth, // Two items before the current item
-    (index - 1) * itemWidth, // One item before the current item
-    index * itemWidth, // Current item
-    (index + 1) * itemWidth, // One item after the current item
-    (index + 2) * itemWidth, // Two items after the current item
-    (index + 3) * itemWidth, // Three items after the current item
+    (index - 3) * itemWidth,
+    (index - 2) * itemWidth,
+    (index - 1) * itemWidth,
+    index * itemWidth,
+    (index + 1) * itemWidth,
+    (index + 2) * itemWidth,
+    (index + 3) * itemWidth,
   ];
 
-  // Define the animated style using useAnimatedStyle hook
-  const rAnimatedImageStyle = useAnimatedStyle(() => {
-    /**
-     * Interpolates the scaleX value based on the scrollOffset and inputRange.
-     *
-     * interpolate function:
-     * - The first argument is the animated value that drives the interpolation, scrollOffset.value in this case.
-     * - The second argument is the input range, which specifies the points at which the output values should change.
-     * - The third argument is the output range, which specifies the values that should correspond to the points in the input range.
-     * - The optional fourth argument is the extrapolation type, which determines how values outside the input range are handled.
-     *
-     * Here, scaleX changes smoothly between different values to create a zoom effect for the carousel items:
-     * - At (index - 3) * itemWidth, scaleX is 0.1 (the image is smallest here).
-     * - As we move closer to the center item, scaleX increases, making the image larger.
-     * - At index * itemWidth (the center item), scaleX is 1 (the image is at its largest).
-     * - Beyond the center, scaleX decreases again, making the images smaller.
-     */
+  const rAnimatedCardStyle = useAnimatedStyle(() => {
     const scaleX = interpolate(
       scrollOffset.value,
       inputRange,
       [0.1, 0.125, 0.2, 1, 0.2, 0.125, 0.1],
-      Extrapolation.CLAMP,
+      Extrapolation.CLAMP
     );
-
-    /**
-     * Interpolates the scaleY value in a similar manner to scaleX.
-     * This changes the vertical scale of the image as it moves through the carousel.
-     */
     const scaleY = interpolate(
       scrollOffset.value,
       inputRange,
-      [0.6, 0.8, 0.9, 1, 0.9, 0.8, 0.6],
+      [0.6, 0.8, 0.9, 1, 0.9, 0.8, 0.6]
     );
-
-    /**
-     * Interpolates the translateX value to move the images horizontally.
-     * This shifts the images left and right as the carousel scrolls.
-     */
     const translateX = interpolate(scrollOffset.value, inputRange, [
       -itemWidth * 1.9,
       -itemWidth / 0.93,
@@ -79,11 +61,6 @@ export const CarouselItem: React.FC<CarouselItemProps> = ({
       itemWidth / 0.93,
       itemWidth * 1.9,
     ]);
-
-    /**
-     * Interpolates the borderRadius value to change the border radius of the images.
-     * The images have a smaller border radius when they are the center item.
-     */
     const maxBorderRadius = 25;
     const borderRadius = interpolate(scrollOffset.value, inputRange, [
       maxBorderRadius,
@@ -94,11 +71,6 @@ export const CarouselItem: React.FC<CarouselItemProps> = ({
       maxBorderRadius,
       maxBorderRadius,
     ]);
-
-    /**
-     * Interpolates the opacity value to fade images in and out as they move through the carousel.
-     * The opacity decreases as the images move further away from the center item.
-     */
     const opacity = interpolate(
       scrollOffset.value,
       [
@@ -107,67 +79,127 @@ export const CarouselItem: React.FC<CarouselItemProps> = ({
         (index + 3) * itemWidth + 100,
       ],
       [0, 1, 1, 1, 1, 1, 1, 1, 0],
-      Extrapolation.CLAMP,
+      Extrapolation.CLAMP
     );
-
     const width = Math.round(itemWidth * scaleX);
 
     return {
-      borderRadius: borderRadius,
+      borderRadius,
       opacity,
-      width: width,
-      transform: [
-        {
-          translateX,
-        },
-        {
-          scaleY,
-        },
-      ],
+      width,
+      height: itemHeight,
+      transform: [{ translateX }, { scaleY }],
     };
-  }, [inputRange]);
+  }, [index, itemWidth, itemHeight]);
 
-  /**
-   * The interpolate function is crucial for creating smooth animations in React Native Reanimated.
-   * It takes a value and maps it from one range of values (input range) to another range of values (output range).
-   * This is particularly useful for creating fluid transitions and effects based on user interactions or other dynamic values.
-   *
-   * Extrapolation:
-   * - By default, interpolate allows values outside the input range to be extrapolated.
-   * - Extrapolation.CLAMP restricts the output values to stay within the specified output range, preventing values from going beyond the defined limits.
-   */
+  const hasImage = Boolean(item.image);
+  const hasGradient = Boolean(
+    item.gradientColors && item.gradientColors.length >= 2
+  );
+  const bgColor = item.backgroundColor ?? DEFAULT_CARD_BG;
 
   return (
     <Animated.View
       style={[
-        {
-          width: itemWidth,
-        },
-        styles.container,
-      ]}>
-      <Animated.View style={[rAnimatedImageStyle, styles.image]}>
-        <Image
-          source={{ uri: image }}
-          style={{
-            width: itemWidth,
-            aspectRatio: 4 / 3,
-          }}
-        //   contentFit="cover"
-        //   cachePolicy={'memory-disk'}
-		resizeMode='cover'
-        />
+        { width: itemWidth, height: itemHeight },
+        styles.outer,
+      ]}
+    >
+      <Animated.View style={[rAnimatedCardStyle, styles.card]}>
+        {/* Background: image or gradient or solid */}
+        {hasImage ? (
+          <Image
+            source={{ uri: item.image }}
+            style={[StyleSheet.absoluteFill, styles.bgImage]}
+            resizeMode="cover"
+          />
+        ) : hasGradient ? (
+          <LinearGradient
+            colors={item.gradientColors!}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor }]} />
+        )}
+
+        {/* Overlay so text/icon stay readable on image */}
+        {(hasImage && (item.title || item.subtitle || item.icon || item.children)) ? (
+          <View style={styles.overlay} />
+        ) : null}
+
+        {/* Content: custom children, or title/subtitle/icon */}
+        <View style={styles.content} pointerEvents="none">
+          {item.children != null ? (
+            item.children
+          ) : (
+            <>
+              {item.icon ? <View style={styles.iconWrap}>{item.icon}</View> : null}
+              {item.title ? (
+                <Text style={styles.title} numberOfLines={2}>
+                  {item.title}
+                </Text>
+              ) : null}
+              {item.subtitle ? (
+                <Text style={styles.subtitle} numberOfLines={2}>
+                  {item.subtitle}
+                </Text>
+              ) : null}
+            </>
+          )}
+        </View>
       </Animated.View>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  outer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  image: {
+  card: {
     borderCurve: 'continuous',
     overflow: 'hidden',
+  },
+  bgImage: {
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  content: {
+    ...StyleSheet.absoluteFillObject,
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iconWrap: {
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 28,
+    // fontWeight: '700',
+    fontFamily: 'Bold',
+    color: '#fff',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    marginTop: 6,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });

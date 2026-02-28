@@ -190,7 +190,7 @@ const NeuButton = forwardRef<View, AnimatedButtonProps>(
           styles.container,
           fullWidth && !iconOnly && { width: '100%' },
           style,
-          (disabled || loading) && { opacity: 0.6 },
+          (disabled || loading) && { opacity: 1 },
         ]}
       >
         {/* Shadow */}
@@ -240,7 +240,7 @@ const NeuButton = forwardRef<View, AnimatedButtonProps>(
             <View style={styles.content}>
               {loading ? (
                 <>
-                  <ActivityIndicator color={textColor} />
+                  <ActivityIndicator color={textColor} size={'large'}  />
                   {!iconOnly && loadingText && (
                     <Text style={[styles.text, { color: textColor }, textStyle]}>
                       {loadingText}

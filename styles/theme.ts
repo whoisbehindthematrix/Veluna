@@ -4,6 +4,7 @@ export const palette = {
 	pink50: '#fdf2f8',
 	pink100: '#fce7f3',
 	pink500: '#ec4899',
+	babyPink: '#FFB6C1', // Baby Pink - default accent color
 	orange400: '#f97316',
 	purple400: '#8b5cf6',
 	green500: '#10b981',
@@ -24,7 +25,7 @@ export const palette = {
 	textSecondary: palette.neutral500,
 	primary: palette.pink500,
 	primarySoft: palette.pink50,
-	accent: palette.orange400,
+	accent: palette.babyPink, // Default to baby pink
 	success: palette.green500,
 	border: palette.pink100,
 	shadow: palette.pink500,
@@ -39,7 +40,7 @@ export const palette = {
 	textSecondary: '#d1d5db',
 	primary: '#f472b6',
 	primarySoft: '#3b1f2b',
-	accent: '#fb923c',
+	accent: palette.babyPink, // Default to baby pink
 	success: '#34d399',
 	border: '#374151',
 	shadow: '#111827',

@@ -33,3 +33,8 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+
+APP_OVERVIEW.md
+BACKEND_IMPLEMENTATION_GUIDE.md
+BACKEND_SCHEMA_DESIGN.md

@@ -93,10 +93,11 @@ export const useCycleRedux = () => {
     if (syncInProgress.current) return; // Prevent concurrent syncs
     syncInProgress.current = true;
     try {
-      // Load cycle entries from backend
+      // Load cycle entries from backend and put them into Redux
       const backendEntries = await cycleEntryService.getCycleEntries();
       if (backendEntries.length > 0) {
-        // Merge with local entries (local takes precedence for conflicts)
+        dispatch(loadCycleData({ entries: backendEntries }));
+        dispatch(calculatePredictions());
         console.log('✅ [Cycle] Loaded', backendEntries.length, 'entries from backend');
       }
     } catch (error) {

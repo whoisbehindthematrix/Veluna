@@ -6,7 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/src/store';
 import { signOut } from '@/src/store/slices/authSlice';
 import { calculatePredictions, updateCurrentPhase, resetCycle } from '@/src/store/slices/cycleSlice';
-import { Settings, Calendar, Heart, Download, Trash2, LogOut, BarChart3, UserCircle2 } from 'lucide-react-native';
+import { Settings, Calendar, Heart, Download, Trash2, LogOut, BarChart3, UserCircle2, Droplet } from 'lucide-react-native';
 import { useCycleInsights } from '@/hooks/useCycleInsights';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -484,6 +484,10 @@ function MyCyclesCard({
 
       <View style={styles.metricsRow}>
         <View style={[styles.metricCard, { backgroundColor: '#ffe4f2' }]}>
+
+          <View style={{ alignItems: 'flex-end', justifyContent: 'flex-end', padding: 4, borderRadius: 45 }}>
+            <Droplet size={24} color="#ec4899" fill="#ec4899" />
+          </View>
           <Text style={[styles.metricValue, { color: '#ec4899' }]}>
             {averagePeriodLength || 0} Days
           </Text>
@@ -493,6 +497,9 @@ function MyCyclesCard({
         </View>
 
         <View style={[styles.metricCard, { backgroundColor: '#fff7e5' }]}>
+          <View style={{ alignItems: 'flex-end', justifyContent: 'flex-end', padding: 4, borderRadius: 45 }}>
+            <Calendar size={24} color="#d97706"  />
+          </View>
           <Text style={[styles.metricValue, { color: '#d97706' }]}>
             {averageCycleLength || 0} Days
           </Text>
@@ -781,7 +788,7 @@ const createMyCyclesCardStyles = (theme: any, accentColor: string) =>
       justifyContent: 'center',
     },
     metricValue: {
-      fontSize: 18,
+      fontSize: 20,
       fontFamily: 'Bold',
       marginBottom: 4,
     },
@@ -845,5 +852,5 @@ const createSignOutStyles = (theme: any, accentColor: string) => StyleSheet.crea
 
 const createPrivacyStyles = (theme: any) => StyleSheet.create({
   privacyNote: { margin: 20, padding: 16, borderRadius: 12 },
-  privacyText: { fontSize: 14, lineHeight: 20 },
+  privacyText: { fontSize: 12, lineHeight: 20 },
 });

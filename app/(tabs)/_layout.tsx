@@ -17,7 +17,8 @@ export default function DrawerLayout() {
           headerShown: false,
           drawerStyle: {
             backgroundColor: theme.cardBackground,
-            width: '85%',
+            width: '80%',
+
           },
           drawerActiveTintColor: accentColor,
           drawerInactiveTintColor: theme.textSecondary,
@@ -29,7 +30,16 @@ export default function DrawerLayout() {
           overlayColor: 'rgba(0, 0, 0, 0.5)',
         }}
       >
-        
+        <Drawer.Screen
+          name="index"
+          options={{
+            title: 'Home',
+            drawerIcon: ({ size, color }) => (
+              <Home size={size} color={color} />
+            ),
+          }}
+        />
+
         <Drawer.Screen
           name="calendar"
           options={{
@@ -48,15 +58,7 @@ export default function DrawerLayout() {
             ),
           }}
         />
-        <Drawer.Screen
-          name="index"
-          options={{
-            title: 'Home',
-            drawerIcon: ({ size, color }) => (
-              <Home size={size} color={color} />
-            ),
-          }}
-        />
+
         <Drawer.Screen
           name="exercise"
           options={{
