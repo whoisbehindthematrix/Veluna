@@ -60,6 +60,29 @@ export const signUpWithEmail = createAsyncThunk(
         );
       }
 
+      // ✅ Ensure full name is persisted to backend user profile
+      // Some backends create the user on /auth/register but don't persist profile fields there.
+      // /auth/me is already used by the Profile Settings screen, so it is the safest way to store fullName.
+      const trimmedName = displayName?.trim();
+      if (trimmedName) {
+        try {
+          const updateRes = await api.put("/auth/me", { fullName: trimmedName });
+          const updatedProfile = updateRes.data?.user?.profile || updateRes.data?.user || null;
+          if (updatedProfile) {
+            const mappedProfile = {
+              ...updatedProfile,
+              displayName: updatedProfile.fullName || updatedProfile.displayName,
+              firstName: updatedProfile.firstName || updatedProfile.fullName?.split(' ')[0] || '',
+              lastName: updatedProfile.lastName || updatedProfile.fullName?.split(' ').slice(1).join(' ') || '',
+            };
+            dispatch(setProfile(mappedProfile as any));
+          }
+        } catch (e) {
+          // Don't fail signup if profile update fails; user can still update in Settings.
+          console.warn('⚠️ [Auth] Failed to persist fullName during signup:', e);
+        }
+      }
+
       // ✅ Update userProfile if profile data is returned
       if (res.data?.user?.profile) {
         const profileData = res.data.user.profile;
